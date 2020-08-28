@@ -1069,6 +1069,9 @@ Numerics and algorithms
 
 * ``warpx.mag_time_scheme_order`` (`1` or `2`; default: `1`)
     The value of the time advancement scheme of M field. `mag_time_scheme_order==1` is the 1st-order Eulerian scheme and `mag_time_scheme_order==2` is the 2nd-order trapezoidal scheme for the LLG equation. This requires `USE_LLG=TRUE` in the GNUMakefile.
+    
+* ``warpx.mag_secondorder_normalization`` (`1` or `2`; default: `1`)
+    When to apply normalization in the second-order magnetization scheme. `mag_secondorder_normalization==1` applies it after each iteration; `mag_secondorder_normalization==2` applies it after the iterations have converged. This requires `USE_LLG=TRUE` in the GNUMakefile.
 
 * ``interpolation.nox``, ``interpolation.noy``, ``interpolation.noz`` (`1`, `2`, or `3` ; default: 1)
     The order of the shape factors for the macroparticles, for the 3 dimensions of space.

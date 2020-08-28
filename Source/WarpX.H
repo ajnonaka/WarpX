@@ -169,6 +169,11 @@ public:
     static int em_solver_medium;
     static int macroscopic_solver_algo;
 
+#ifdef WARPX_MAG_LLG
+    // second-order magnetization normalization strategy
+    int mag_secondorder_normalization = 1;
+#endif
+
 #ifdef WARPX_USE_PSATD
     // If true (overwritten by the user in the input file), the current correction
     // defined in equation (19) of https://doi.org/10.1016/j.jcp.2013.03.010 is applied
@@ -666,7 +671,7 @@ protected:
 
     //! Delete level data.  Called by AmrCore::regrid.
     virtual void ClearLevel (int lev) final;
-
+    
 private:
 
     // Singleton is used when the code is run from python

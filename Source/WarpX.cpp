@@ -556,6 +556,8 @@ WarpX::ReadParameters ()
 #ifdef WARPX_MAG_LLG
         // Read the value of the time advancement scheme of M field
         pp.query("mag_time_scheme_order", mag_time_scheme_order);
+        // Read second-order magnetization normalization strategy
+        pp.query("mag_secondorder_normalization", mag_secondorder_normalization);
 #endif
 
 #ifdef WARPX_DIM_RZ
