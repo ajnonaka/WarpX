@@ -53,7 +53,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
         auto& warpx = WarpX::GetInstance();
         int coupling = warpx.mag_LLG_coupling;
         int normalization_type = warpx.mag_secondorder_normalization;
-        
+
         // build temporary vector<multifab,3> Mfield_prev, Mfield_error, a_temp, a_temp_static, b_temp_static
         std::array< std::unique_ptr<amrex::MultiFab>, 3 > Mfield_prev; // M^n before the iteration
         std::array< std::unique_ptr<amrex::MultiFab>, 3 > Mfield_error; // The error of the M field between the twoiterations
@@ -391,7 +391,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
               M_xface(i, j, k, 2) = MacroscopicProperties::updateM_field(i, j, k, 2, a_temp_xface, b_temp_static_xface);
 
               if (normalization_type == 1) {
-              
+
                   // temporary normalized magnitude of M_xface field at the fixed point
                   // re-investigate the way we do Ms interp, in case we encounter the case where Ms changes across two adjacent cells that you are doing interp
                   amrex::Real mag_normalized = std::sqrt( std::pow(M_xface(i, j, k, 0),2.0) + std::pow(M_xface(i, j, k, 1),2.0) +
@@ -470,7 +470,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
               M_yface(i, j, k, 2) = MacroscopicProperties::updateM_field(i, j, k, 2, a_temp_yface, b_temp_static_yface);
 
               if (normalization_type == 1) {
-                  
+
                   // temporary normalized magnitude of M_yface field at the fixed point
                   // re-investigate the way we do Ms interp, in case we encounter the case where Ms changes across two adjacent cells that you are doing interp
                   amrex::Real mag_normalized = std::sqrt( std::pow(M_yface(i, j, k, 0),2.0) + std::pow(M_yface(i, j, k, 1),2.0) +
@@ -548,7 +548,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
               M_zface(i, j, k, 2) = MacroscopicProperties::updateM_field(i, j, k, 2, a_temp_zface, b_temp_static_zface);
 
               if (normalization_type == 1) {
-                  
+
                   // temporary normalized magnitude of M_zface field at the fixed point
                   // re-investigate the way we do Ms interp, in case we encounter the case where Ms changes across two adjacent cells that you are doing interp
                   amrex::Real mag_normalized = std::sqrt( std::pow(M_zface(i, j, k, 0),2.0_rt) + std::pow(M_zface(i, j, k, 1),2.0_rt) +
@@ -590,7 +590,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
         }
 
         if (M_iter_maxerror <= M_tol) {
-            
+
             stop_iter = 1;
 
             // normalize M
@@ -621,7 +621,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
                         amrex::Real mag_normalized = std::sqrt( std::pow(M_xface(i, j, k, 0),2.0) + std::pow(M_xface(i, j, k, 1),2.0) +
                                                                 std::pow(M_xface(i, j, k, 2),2.0) )
                             / MacroscopicProperties::macro_avg_to_face(i,j,k,amrex::IntVect(1,0,0),mag_Ms_arr);
-                                           
+
                         // check the normalized error
                         if ( amrex::Math::abs(1._rt-mag_normalized) > mag_normalized_error ){
                             printf("i = %d, j=%d, k=%d\n", i, j, k);
@@ -635,7 +635,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
                     },
 
                     [=] AMREX_GPU_DEVICE (int i, int j, int k){
-                  
+
                         // temporary normalized magnitude of M_yface field at the fixed point
                         // re-investigate the way we do Ms interp, in case we encounter the case where Ms changes across two adjacent cells that you are doing interp
                         amrex::Real mag_normalized = std::sqrt( std::pow(M_yface(i, j, k, 0),2.0) + std::pow(M_yface(i, j, k, 1),2.0) +
@@ -683,7 +683,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
                 Mfield_prev_max[i] = std::max(amrex::Math::abs((*Mfield_prev[i]).max(i,0)),amrex::Math::abs((*Mfield_prev[i]).min(i,0)));
             }
         }
-           
+
         if (M_iter >= M_max_iter) {
             amrex::Abort("The M_iter exceeds the M_max_iter");
             amrex::Print() << "The M_iter = " << M_iter << " exceeds the M_max_iter = " << M_max_iter << std::endl;
@@ -691,7 +691,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM_2nd (
             M_iter++;
             amrex::Print() << "Finish " << M_iter << " times iteration with M_iter_maxerror = " << M_iter_maxerror << " and M_tol = " << M_tol << std::endl;
         }
-    
+
     } // end the iteration
 }
 #endif

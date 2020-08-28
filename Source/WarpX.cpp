@@ -560,7 +560,7 @@ WarpX::ReadParameters ()
         pp.query("mag_secondorder_normalization", mag_secondorder_normalization);
         // turn on LLG + Maxwell coupling
         pp.query("mag_LLG_coupling",mag_LLG_coupling);
-        
+
 #endif
 
 #ifdef WARPX_DIM_RZ

@@ -47,7 +47,7 @@ void FiniteDifferenceSolver::MacroscopicEvolveM (
 
         auto& warpx = WarpX::GetInstance();
         int coupling = warpx.mag_LLG_coupling;
-        
+
         // build temporary vector<multifab,3> Mfield_prev
         std::array< std::unique_ptr<amrex::MultiFab>, 3 > Mfield_prev; // Mfield data in previous step
         for (int i = 0; i < 3; i++){
