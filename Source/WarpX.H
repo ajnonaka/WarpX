@@ -671,7 +671,7 @@ protected:
 
     //! Delete level data.  Called by AmrCore::regrid.
     virtual void ClearLevel (int lev) final;
-    
+
 private:
 
     // Singleton is used when the code is run from python
