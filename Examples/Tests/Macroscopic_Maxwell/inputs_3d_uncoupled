@@ -5,13 +5,13 @@
 ####### GENERAL PARAMETERS ######
 #################################
 max_step = 500
-amr.n_cell = 64 64 256
-amr.max_grid_size = 256
+amr.n_cell = 64 64 128
+amr.max_grid_size = 64
 amr.blocking_factor = 64
 geometry.coord_sys   = 0
-geometry.is_periodic = 1  1  1
-geometry.prob_lo     =  -32.e-6 -32.e-6 -256.e-6
-geometry.prob_hi     =   32.e-6  32.e-6  256.e-6
+geometry.is_periodic = 1  1  0
+geometry.prob_lo     =  -32.e-6 -32.e-6 -128.e-6
+geometry.prob_hi     =   32.e-6  32.e-6  128.e-6
 amr.max_level = 0
 
 #################################
@@ -20,7 +20,7 @@ amr.max_level = 0
 warpx.verbose = 0
 warpx.use_filter = 0
 warpx.cfl = 0.9
-warpx.do_pml = 0
+warpx.do_pml = 1
 
 algo.em_solver_medium = macroscopic # vacuum/macroscopic
 algo.macroscopic_sigma_method = laxwendroff # laxwendroff or backwardeuler
