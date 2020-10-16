@@ -1,4 +1,7 @@
-# ###############################
+# This is a E+B (use USE_LLG=FALSE, ie., no M field) simulation of a
+# plane wave in a periodic domain
+
+################################
 ####### GENERAL PARAMETERS ######
 #################################
 max_step = 500
