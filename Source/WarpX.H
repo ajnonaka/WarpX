@@ -776,6 +776,13 @@ public:
          HostDeviceParser<3> const& yflag_parser,
          HostDeviceParser<3> const& zflag_parser, const int lev );
 
+#ifdef WARPX_MAG_LLG
+    void AverageParsedMtoFaces(amrex::MultiFab& Mx, amrex::MultiFab& My, amrex::MultiFab& Mz,
+                               amrex::MultiFab& Mxfield_face,
+                               amrex::MultiFab& Myfield_face,
+                               amrex::MultiFab& Mzfield_face);
+#endif
+
 protected:
 
     /**
