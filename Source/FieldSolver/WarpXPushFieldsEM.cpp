@@ -244,9 +244,9 @@ WarpX::EvolveE (int lev, PatchType patch_type, amrex::Real a_dt)
             m_fdtd_solver_cp[lev]->EvolveEPML(
                 pml[lev]->GetE_cp(),
 #ifdef WARPX_MAG_LLG
-                pml[lev]->GetH_fp(),
+                pml[lev]->GetH_cp(),
 #else
-                pml[lev]->GetB_fp(),
+                pml[lev]->GetB_cp(),
 #endif                
                 pml[lev]->Getj_cp(), pml[lev]->GetF_cp(),
                 pml[lev]->GetMultiSigmaBox_cp(),
@@ -360,9 +360,9 @@ WarpX::MacroscopicEvolveE (int lev, PatchType patch_type, amrex::Real a_dt) {
             m_fdtd_solver_cp[lev]->EvolveEPML(
                 pml[lev]->GetE_cp(),
 #ifdef WARPX_MAG_LLG
-                pml[lev]->GetH_fp(),
+                pml[lev]->GetH_cp(),
 #else
-                pml[lev]->GetB_fp(),
+                pml[lev]->GetB_cp(),
 #endif                
                 pml[lev]->Getj_cp(), pml[lev]->GetF_cp(),
                 pml[lev]->GetMultiSigmaBox_cp(),
