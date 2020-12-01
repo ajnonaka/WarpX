@@ -89,7 +89,9 @@ void FiniteDifferenceSolver::EvolveHPMLCartesian (
         Box const& tbx  = mfi.tilebox(Hfield[0]->ixType().ixType());
         Box const& tby  = mfi.tilebox(Hfield[1]->ixType().ixType());
         Box const& tbz  = mfi.tilebox(Hfield[2]->ixType().ixType());
-        amrex::Real mu0_inv = 1._rt/PhysConst::mu0
+
+        amrex::Real mu0_inv = 1._rt/PhysConst::mu0;
+
         // Loop over the cells and update the fields
         amrex::ParallelFor(tbx, tby, tbz,
 
