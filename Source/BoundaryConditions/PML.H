@@ -157,7 +157,7 @@ public:
     void ExchangeH (const std::array<amrex::MultiFab*,3>& H_fp,
                     const std::array<amrex::MultiFab*,3>& H_cp, int do_pml_in_domain);
     void ExchangeH (PatchType patch_type,
-                    const std::array<amrex::MultiFab*,3>& Bp, int do_pml_in_domain);
+                    const std::array<amrex::MultiFab*,3>& Hp, int do_pml_in_domain);
 #endif
     
     void FillBoundary ();
