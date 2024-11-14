@@ -1,3 +1,8 @@
+# 1 = default size for 1 MPI
+# 2 = double physical system size in each direction keeping dx constant; need 4 MPI
+# 4 = quad   physical system size in each direction keeping dx constant; need 4 MPI, etc.
+my_constants.scaling_fac = 1
+
 # Argon 
 # We want to simulate Figs. 4 (b), 5 (a) and (b), and 7 (a) in Rauf et al. 2020.   
 
@@ -20,14 +25,15 @@ warpx.do_electrostatic = labframe
 warpx.self_fields_required_precision = 1.e-7 #
 warpx.use_filter = 0
 
-amr.n_cell = 256 128 # 2*0.1035/256 = 0.0008 m (dx = 1 mm approx.); 0.1054/128 = 0.0008 m (dz = 1 mm approx.))
+# 2*0.1035/256 = 0.0008 m (dx = 1 mm approx.); 0.1054/128 = 0.0008 m (dz = 1 mm approx.))
+amr.n_cell = 256*scaling_fac 128*scaling_fac
 amr.max_grid_size = 256
-amr.blocking_factor = 8 
+amr.blocking_factor = 128
 amr.max_level = 0
 
 geometry.dims = 2
-geometry.prob_lo =  -0.1035  -0.0527  # x z  # cover complete chamber (do not exploit symmetry)
-geometry.prob_hi =  0.1035   0.0527
+geometry.prob_lo =  -0.1035*scaling_fac  -0.0527*scaling_fac  # x z  # cover complete chamber (do not exploit symmetry)
+geometry.prob_hi =   0.1035*scaling_fac   0.0527*scaling_fac
 boundary.field_lo = pec pec
 boundary.field_hi = pec pec
 boundary.potential_hi_x = 0.
@@ -41,11 +47,11 @@ boundary.particle_hi = absorbing absorbing
 algo.particle_shape = 1
 
 # EB
-my_constants.te_xmax = 0.0508
-my_constants.dx_thick = 0.0015 # dielectric thickness
-my_constants.be_xmax = 0.0523
-my_constants.zhi = 0.0127
-my_constants.zlo = -0.0127
+my_constants.te_xmax = 0.0508*scaling_fac
+my_constants.dx_thick = 0.0015*scaling_fac # dielectric thickness
+my_constants.be_xmax = 0.0523*scaling_fac
+my_constants.zhi = 0.0127*scaling_fac
+my_constants.zlo = -0.0127*scaling_fac
 warpx.eb_implicit_function = "min(max((zlo-z),(z-zhi)),-max((x+(-be_xmax)),-(x+be_xmax)))" # "if( ((z>zhi) or (z<zlo)) and (x<be_xmax) and (x>-be_xmax) , 1,-1 )" # ??
 warpx.eb_potential(x,y,z,t) = " sin(2*pi*freq*t)*(voltage*(z>zhi)*(x<te_xmax)*(x>-te_xmax) + voltage*(z>zhi)*(x>te_xmax)*(x<be_xmax)*(be_xmax-x)/dx_thick + voltage*(z>zhi)*(x<-te_xmax)*(x>-be_xmax)*(x+be_xmax)/dx_thick + 0.*(z<zlo)*(x<be_xmax)*(x>-be_xmax)) "
 
