@@ -27,7 +27,8 @@ warpx.use_filter = 0
 
 # 2*0.1035/256 = 0.0008 m (dx = 1 mm approx.); 0.1054/128 = 0.0008 m (dz = 1 mm approx.))
 amr.n_cell = 256*scaling_fac 128*scaling_fac
-amr.max_grid_size = 256
+amr.max_grid_size_x = 256
+amr.max_grid_size_z = 128
 amr.blocking_factor = 128
 amr.max_level = 0
 
