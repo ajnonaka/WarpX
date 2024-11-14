@@ -1,6 +1,7 @@
 # 1 = default size for 1 MPI
 # 2 = double physical system size in each direction keeping dx constant; need 4 MPI
-# 4 = quad   physical system size in each direction keeping dx constant; need 4 MPI, etc.
+# 4 = quad   physical system size in each direction keeping dx constant; need 16 MPI
+# etc.
 my_constants.scaling_fac = 1
 
 # Argon 
