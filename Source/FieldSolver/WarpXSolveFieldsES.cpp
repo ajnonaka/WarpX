@@ -16,6 +16,7 @@
 void WarpX::ComputeSpaceChargeField (bool const reset_fields)
 {
     WARPX_PROFILE("WarpX::ComputeSpaceChargeField");
+    WARPX_PROFILE_REGION("WarpX::ComputeSpaceChargeField()");
     using ablastr::fields::Direction;
     using warpx::fields::FieldType;
 
