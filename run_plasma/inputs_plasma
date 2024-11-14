@@ -21,7 +21,7 @@ my_constants.m_e = 9.11e-31 # (kg)
 my_constants.kb = 1.38e-23 # (J/K)
 
 # amr.restart = ./diags/chk01450000
-max_step = 10 # 2000000 # 5000 RF cycles
+max_step = 20 # 2000000 # 5000 RF cycles
 warpx.verbose = 1
 warpx.const_dt = 1.0/(400*freq)
 warpx.do_electrostatic = labframe
@@ -87,27 +87,27 @@ coll_ion.species = ar_ions
 coll_ion.background_density = Ngas
 coll_ion.background_temperature = Tgas
 coll_ion.scattering_processes = elastic back charge_exchange
-coll_ion.elastic_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_scattering.dat
-coll_ion.back_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_back_scatter.dat
-coll_ion.charge_exchange_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/charge_exchange.dat
+coll_ion.elastic_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_scattering.dat
+coll_ion.back_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_back_scatter.dat
+coll_ion.charge_exchange_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/charge_exchange.dat
 
 coll_elec.type = background_mcc
 coll_elec.species = electrons
 coll_elec.background_density = Ngas
 coll_elec.background_temperature = Tgas
 coll_elec.scattering_processes = elastic excitation1 ionization
-coll_elec.elastic_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/electron_scattering.dat
+coll_elec.elastic_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/electron_scattering.dat
 coll_elec.excitation1_energy = 11.5
-coll_elec.excitation1_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/excitation_1.dat
+coll_elec.excitation1_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/excitation_1.dat
 coll_elec.ionization_energy = 15.7596112
-coll_elec.ionization_cross_section = /home/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ionization.dat
+coll_elec.ionization_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ionization.dat
 coll_elec.ionization_species = ar_ions
 
-diagnostics.diags_names = plt chk #plt_eb
-plt.diag_type = Full
-plt.intervals = 1
-plt.fields_to_plot = phi
-plt.file_min_digits = 8
+#diagnostics.diags_names = plt chk #plt_eb
+#plt.diag_type = Full
+#plt.intervals = 1
+#plt.fields_to_plot = phi
+#plt.file_min_digits = 8
 
 #plt_eb.diag_type = BoundaryScraping
 #plt_eb.format = openpmd
@@ -115,8 +115,8 @@ plt.file_min_digits = 8
 #plt_eb.particle_field_species = ar_ions
 #plt_eb.intervals = 190000:200000:1000
 
-chk.diag_type = Full
-chk.format = checkpoint
-chk.intervals = 1000
-chk.file_min_digits = 8
+#chk.diag_type = Full
+#chk.format = checkpoint
+#chk.intervals = 1000
+#chk.file_min_digits = 8
 
