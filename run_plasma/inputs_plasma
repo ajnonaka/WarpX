@@ -4,8 +4,10 @@
 # etc.
 my_constants.scaling_fac = 1
 
-# Argon 
-# We want to simulate Figs. 4 (b), 5 (a) and (b), and 7 (a) in Rauf et al. 2020.   
+amrex.use_gpu_aware_mpi=1
+
+# Argon
+# We want to simulate Figs. 4 (b), 5 (a) and (b), and 7 (a) in Rauf et al. 2020.
 
 my_constants.Ngas = 3.22e21  # 100 mTorr # (m^-3)
 my_constants.Tgas = 300. # (K)
@@ -18,7 +20,7 @@ my_constants.clight = 3.e8 # speed of light in vacuum
 my_constants.m_e = 9.11e-31 # (kg)
 my_constants.kb = 1.38e-23 # (J/K)
 
-# amr.restart = ./diags/chk01450000   
+# amr.restart = ./diags/chk01450000
 max_step = 10 # 2000000 # 5000 RF cycles
 warpx.verbose = 1
 warpx.const_dt = 1.0/(400*freq)
@@ -109,7 +111,7 @@ plt.file_min_digits = 8
 
 #plt_eb.diag_type = BoundaryScraping
 #plt_eb.format = openpmd
-#plt_eb.fields_to_plot = phi 
+#plt_eb.fields_to_plot = phi
 #plt_eb.particle_field_species = ar_ions
 #plt_eb.intervals = 190000:200000:1000
 
