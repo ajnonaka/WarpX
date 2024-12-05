@@ -22,9 +22,9 @@ warpx.do_electrostatic = labframe
 warpx.self_fields_required_precision = 1.e-7 #
 warpx.use_filter = 0
 
-amr.n_cell = 8800 4480 # 2*0.1035/256 = 0.0008 m (dx = 1 mm approx.); 0.1054/128 = 0.0008 m (dz = 1 mm approx.))
-amr.max_grid_size_x = 4400
-amr.max_grid_size_y = 2240
+amr.n_cell = 4096 2048
+amr.max_grid_size_x = 512
+amr.max_grid_size_y = 512
 amr.blocking_factor = 8
 amr.max_level = 0
 
@@ -57,7 +57,7 @@ particles.species_names = electrons ar_ions
 electrons.species_type = electron
 electrons.injection_style = nuniformpercell
 electrons.initialize_self_fields = 0
-electrons.num_particles_per_cell_each_dim = 16 16
+electrons.num_particles_per_cell_each_dim = 8 8
 electrons.profile = constant
 electrons.density = Nplasma
 electrons.momentum_distribution_type = maxwell_boltzmann
@@ -67,7 +67,7 @@ ar_ions.species_type = argon
 ar_ions.charge = q_e
 ar_ions.injection_style = nuniformpercell
 ar_ions.initialize_self_fields = 0
-ar_ions.num_particles_per_cell_each_dim = 16 16
+ar_ions.num_particles_per_cell_each_dim = 8 8
 ar_ions.profile = constant
 ar_ions.density = Nplasma
 ar_ions.momentum_distribution_type = maxwell_boltzmann
@@ -113,3 +113,6 @@ coll_elec.ionization_species = ar_ions
 #chk.intervals = 1000
 #chk.file_min_digits = 8
 
+#warpx.reduced_diags_names = partnum
+#partnum.type = ParticleNumber
+#partnum.intervals = 1
