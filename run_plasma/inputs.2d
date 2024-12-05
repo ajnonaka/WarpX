@@ -50,7 +50,7 @@ my_constants.be_xmax = 0.052
 my_constants.zhi = 0.0128
 my_constants.zlo = -0.0128
 warpx.eb_implicit_function = "min(max((zlo-z),(z-zhi)),-max((x+(-be_xmax)),-(x+be_xmax)))" # "if( ((z>zhi) or (z<zlo)) and (x<be_xmax) and (x>-be_xmax) , 1,-1 )" # ??
-warpx.eb_potential(x,y,z,t) = " voltage*(z>zhi)*(x<te_xmax)*(x>-te_xmax) + voltage*(z>zhi)*(x>te_xmax)*(x<be_xmax)*(be_xmax-x)/dx_thick + voltage*(z>zhi)*(x<-te_xmax)*(x>-be_xmax)*(x+be_xmax)/dx_thick + 0.*(z<zlo)*(x<be_xmax)*(x>-be_xmax) "
+warpx.eb_potential(x,y,z,t) = " sin(2*pi*freq*t)*(voltage*(z>zhi)*(x<te_xmax)*(x>-te_xmax) + voltage*(z>zhi)*(x>te_xmax)*(x<be_xmax)*(be_xmax-x)/dx_thick + voltage*(z>zhi)*(x<-te_xmax)*(x>-be_xmax)*(x+be_xmax)/dx_thick + 0.*(z<zlo)*(x<be_xmax)*(x>-be_xmax)) "
 
 particles.species_names = electrons ar_ions
 
