@@ -261,6 +261,12 @@ computePhi (
     amrex::Print() << "HERE LPInfo\n";
     amrex::ParmParse pp1("lpinfo");
 
+    int aaa;
+    amrex::Real bbb;
+    if (pp1.query("setMaxCoarseningLevel",aaa)) {
+        info.setMaxCoarseningLevel(aaa); // default 30
+    }
+
     for (int lev=0; lev<=finest_level; lev++) {
         amrex::Array<amrex::Real,AMREX_SPACEDIM> const dx_scaled
                 {AMREX_D_DECL(geom[lev].CellSize(0)/std::sqrt(1._rt-beta_solver[0]*beta_solver[0]),
