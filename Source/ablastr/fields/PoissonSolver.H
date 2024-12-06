@@ -258,6 +258,9 @@ computePhi (
 
     amrex::LPInfo info;
 
+    amrex::Print() << "HERE LPInfo\n";
+    amrex::ParmParse pp1("lpinfo");
+
     for (int lev=0; lev<=finest_level; lev++) {
         amrex::Array<amrex::Real,AMREX_SPACEDIM> const dx_scaled
                 {AMREX_D_DECL(geom[lev].CellSize(0)/std::sqrt(1._rt-beta_solver[0]*beta_solver[0]),
@@ -396,6 +399,13 @@ computePhi (
         mlmg.setVerbose(verbosity);
         mlmg.setMaxIter(max_iters);
         mlmg.setAlwaysUseBNorm((max_norm_b > 0));
+
+        amrex::Print() << "HERE MLMG\n";
+
+        amrex::ParmParse pp2("mlmg");
+        int xxx;
+        pp2.query("setPreSmooth",xxx);
+        mlmg.setPreSmooth(xxx);
 
         const int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
         if (ng) {
