@@ -1,5 +1,16 @@
 amrex.use_gpu_aware_mpi = 1
 
+mlmg.setPreSmooth = 2
+mlmg.setPostSmooth = 2
+
+mlmg.setFinalSmooth = 8
+mlmg.setBottomSmooth = 0
+
+mlmg.bottomSolver = 0
+mlmg.setBottomTolerance = 1.e-4
+
+lpinfo.setMaxCoarseningLevel = 30
+
 # Argon
 # We want to simulate Figs. 4 (b), 5 (a) and (b), and 7 (a) in Rauf et al. 2020.
 
