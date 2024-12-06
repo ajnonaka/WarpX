@@ -404,8 +404,44 @@ computePhi (
 
         amrex::ParmParse pp2("mlmg");
         int xxx;
-        pp2.query("setPreSmooth",xxx);
-        mlmg.setPreSmooth(xxx);
+        amrex::Real yyy;
+        if (pp2.query("setPreSmooth",xxx)) {
+            mlmg.setPreSmooth(xxx); // default 2
+        }
+        if (pp2.query("setPostSmooth",xxx)) {
+            mlmg.setPostSmooth(xxx); // default 2
+        }
+        if (pp2.query("setFinalSmooth",xxx)) {
+            mlmg.setFinalSmooth(xxx); // default 8 (when smoother is used as bottom solver)
+        }
+        if (pp2.query("setBottomSmooth",xxx)) {
+            mlmg.setBottomSmooth(xxx); // default 0
+        }
+        if (pp2.query("bottomSolver",xxx)) {
+            if (xxx == 0) {
+                mlmg.setBottomSolver(amrex::BottomSolver::Default); // default 0
+            } else if (xxx == 1) {
+                mlmg.setBottomSolver(amrex::BottomSolver::smoother);
+            } else if (xxx == 2) {
+                mlmg.setBottomSolver(amrex::BottomSolver::bicgstab);
+            } else if (xxx == 3) {
+                mlmg.setBottomSolver(amrex::BottomSolver::cg);
+            } else if (xxx == 4) {
+                mlmg.setBottomSolver(amrex::BottomSolver::bicgcg);
+            } else if (xxx == 5) {
+                mlmg.setBottomSolver(amrex::BottomSolver::cgbicg);
+            } else if (xxx == 6) {
+                mlmg.setBottomSolver(amrex::BottomSolver::hypre);
+            } else if (xxx == 7) {
+                mlmg.setBottomSolver(amrex::BottomSolver::petsc);
+            }
+        }
+        if (pp2.query("setBottomTolerance",yyy)) {
+            mlmg.setBottomTolerance(yyy); // default 1.e-4
+        }
+        if (pp2.query("setBottomToleranceAbs",yyy)) {
+            mlmg.setBottomToleranceAbs(yyy); // default -1.
+        }
 
         const int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
         if (ng) {
