@@ -3,7 +3,7 @@
 #SBATCH -C gpu
 #SBATCH -G 128
 #SBATCH -q regular
-#SBATCH -J WarpX
+#SBATCH -J 128gpu
 #SBATCH -t 00:05:00
 #SBATCH -A mp111_g
 

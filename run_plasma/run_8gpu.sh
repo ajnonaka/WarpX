@@ -3,7 +3,7 @@
 #SBATCH -C gpu
 #SBATCH -G 8
 #SBATCH -q debug
-#SBATCH -J WarpX
+#SBATCH -J 8gpu
 #SBATCH -t 00:05:00
 #SBATCH -A mp111_g
 

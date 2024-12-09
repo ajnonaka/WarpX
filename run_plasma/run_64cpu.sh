@@ -2,7 +2,7 @@
 #SBATCH -N 1
 #SBATCH -C cpu
 #SBATCH -q debug
-#SBATCH -J WarpX
+#SBATCH -J 64cpu
 #SBATCH -t 00:05:00
 
 #OpenMP settings:

@@ -3,7 +3,7 @@
 #SBATCH -C gpu
 #SBATCH -G 2
 #SBATCH -q debug
-#SBATCH -J WarpX_plasma
+#SBATCH -J 2gpu
 #SBATCH -t 00:05:00
 #SBATCH -A mp111_g
 
