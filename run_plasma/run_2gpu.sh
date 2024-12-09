@@ -15,4 +15,4 @@ export OMP_PROC_BIND=spread
 # pin to closest NIC to GPU
 export MPICH_OFI_NIC_POLICY=GPU
 
-srun -n 2 -c 64 --cpu_bind=cores -G 2 --gpu-bind=none ./warpx.2d.MPI.CUDA.DP.PDP.OPMD.EB inputs.2d
+srun -n 2 -c 64 --cpu_bind=cores -G 2 --gpu-bind=none ./warpx.2d.MPI.CUDA.DP.PDP.OPMD.EB inputs.2d_2gpu
