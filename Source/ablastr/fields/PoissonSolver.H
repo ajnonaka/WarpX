@@ -456,11 +456,20 @@ computePhi (
             mlmg.setFinalFillBC(true);
         }
 
+
+        const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
+        
         // Solve Poisson equation at lev
         mlmg.solve( {phi[lev]}, {rho[lev]},
                      relative_tolerance, absolute_tolerance );
 
-        const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
+        const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
+
+        amrex::Print()<< "MLMG time = "
+                      << mlmg_time_end_step-mlmg_time_beg_step
+                      << " s\n";
+
+    const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
         const int ncomp = linop->getNComp();
 
         // needed for solving the levels by levels:
