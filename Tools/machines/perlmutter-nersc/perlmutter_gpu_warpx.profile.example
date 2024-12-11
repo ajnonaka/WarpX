@@ -1,5 +1,5 @@
 # please set your project account
-export proj=""  # change me! GPU projects must end in "..._g"
+export proj="mp111_g"  # change me! GPU projects must end in "..._g"
 
 # remembers the location of this script
 export MY_PROFILE=$(cd $(dirname $BASH_SOURCE) && pwd)"/"$(basename $BASH_SOURCE)
