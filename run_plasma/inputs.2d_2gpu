@@ -92,20 +92,20 @@ coll_ion.species = ar_ions
 coll_ion.background_density = Ngas
 coll_ion.background_temperature = Tgas
 coll_ion.scattering_processes = elastic back charge_exchange
-coll_ion.elastic_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_scattering.dat
-coll_ion.back_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ion_back_scatter.dat
-coll_ion.charge_exchange_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/charge_exchange.dat
+coll_ion.elastic_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/ion_scattering.dat
+coll_ion.back_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/ion_back_scatter.dat
+coll_ion.charge_exchange_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/charge_exchange.dat
 
 coll_elec.type = background_mcc
 coll_elec.species = electrons
 coll_elec.background_density = Ngas
 coll_elec.background_temperature = Tgas
 coll_elec.scattering_processes = elastic excitation1 ionization
-coll_elec.elastic_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/electron_scattering.dat
+coll_elec.elastic_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/electron_scattering.dat
 coll_elec.excitation1_energy = 11.5
-coll_elec.excitation1_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/excitation_1.dat
+coll_elec.excitation1_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/excitation_1.dat
 coll_elec.ionization_energy = 15.7596112
-coll_elec.ionization_cross_section = /global/homes/a/ajnonaka/CCSEPackages/warpx-data/MCC_cross_sections/Ar/ionization.dat
+coll_elec.ionization_cross_section = /global/cfs/cdirs/mp111/warpx-data/MCC_cross_sections/Ar/ionization.dat
 coll_elec.ionization_species = ar_ions
 
 #diagnostics.diags_names = plt chk #plt_eb
