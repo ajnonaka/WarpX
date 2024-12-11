@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -N 1
+#SBATCH -N 8
 #SBATCH -C gpu
-#SBATCH -G 4
+#SBATCH -G 32
 #SBATCH -q debug
-#SBATCH -J WarpX_plasma
+#SBATCH -J 32gpu
 #SBATCH -t 00:05:00
 #SBATCH -A mp111_g
 
@@ -15,4 +15,5 @@ export OMP_PROC_BIND=spread
 # pin to closest NIC to GPU
 export MPICH_OFI_NIC_POLICY=GPU
 
-srun -n 4 -c 32 --cpu_bind=cores -G 4 --gpu-bind=none ./warpx.2d.MPI.CUDA.DP.PDP.OPMD.EB inputs.2d
+srun -n 32 -c 32 --cpu_bind=cores -G 32 --gpu-bind=none  ./warpx.2d.MPI.CUDA.DP.PDP.OPMD.EB inputs.2d_32gpu
+

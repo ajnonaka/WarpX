@@ -26,14 +26,15 @@ my_constants.m_e = 9.11e-31 # (kg)
 my_constants.kb = 1.38e-23 # (J/K)
 
 # amr.restart = ./diags/chk01450000
-max_step = 20 # 2000000 # 5000 RF cycles
+max_step = 100 # 2000000 # 5000 RF cycles
 warpx.verbose = 1
 warpx.const_dt = 1.0/(400*freq)
 warpx.do_electrostatic = labframe
 warpx.self_fields_required_precision = 1.e-7 #
 warpx.use_filter = 0
+warpx.sort_intervals = -1
 
-amr.n_cell = 4096 2048
+amr.n_cell = 2048 1024
 amr.max_grid_size_x = 512
 amr.max_grid_size_y = 512
 amr.blocking_factor = 8
@@ -48,8 +49,8 @@ boundary.potential_hi_x = 0.
 boundary.potential_lo_z = 0.
 boundary.potential_lo_x = 0.
 boundary.potential_hi_z = 0.
-boundary.particle_lo = absorbing absorbing
-boundary.particle_hi = absorbing absorbing
+boundary.particle_lo = reflecting reflecting
+boundary.particle_hi = reflecting reflecting
 
 # Order of particle shape factors
 algo.particle_shape = 1
@@ -85,7 +86,7 @@ ar_ions.momentum_distribution_type = maxwell_boltzmann
 ar_ions.theta = (kb*Tgas/(Mion*clight^2))
 ar_ions.save_particles_at_eb = 1
 
-collisions.collision_names = coll_elec  coll_ion
+#collisions.collision_names = coll_elec  coll_ion
 coll_ion.type = background_mcc
 coll_ion.species = ar_ions
 coll_ion.background_density = Ngas

@@ -17,7 +17,7 @@ void WarpX::ComputeSpaceChargeField (bool const reset_fields)
 {
     WARPX_PROFILE("WarpX::ComputeSpaceChargeField");
     WARPX_PROFILE_REGION("WarpX::ComputeSpaceChargeField()");
-    const auto evolve_time_beg_step = static_cast<amrex::Real>(amrex::second());
+
     using ablastr::fields::Direction;
     using warpx::fields::FieldType;
 
@@ -34,10 +34,4 @@ void WarpX::ComputeSpaceChargeField (bool const reset_fields)
 
     m_electrostatic_solver->ComputeSpaceChargeField(
         m_fields, *mypc, myfl.get(), max_level );
-
-    const auto evolve_time_end_step = static_cast<amrex::Real>(amrex::second());
-
-    amrex::Print()<< "Electrostatic time = "
-                  << evolve_time_end_step-evolve_time_beg_step
-                  << " s\n";
 }
