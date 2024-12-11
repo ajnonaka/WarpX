@@ -262,7 +262,24 @@ computePhi (
     amrex::ParmParse pp1("lpinfo");
 
     int aaa;
-    amrex::Real bbb;
+    if (pp1.query("do_agglomeration",aaa)) {
+        info.setAgglomeration(aaa); // default true
+    }
+    if (pp1.query("agg_grid_size",aaa)) {
+        info.setAgglomerationGridSize(aaa); // default -1 (architecture-dependent setting)
+    }
+    if (pp1.query("do_consolidation",aaa)) {
+        info.setConsolidation(aaa); // default true
+    }
+    if (pp1.query("con_grid_size",aaa)) {
+        info.setConsolidationGridSize(aaa); // default -1 (architecture-dependent setting)
+    }
+    if (pp1.query("con_ratio",aaa)) {
+        info.setConsolidationRatio(aaa); // default 2
+    }
+    if (pp1.query("con_strategy",aaa)) {
+        info.setConsolidationStrategy(aaa); // default 3
+    }
     if (pp1.query("setMaxCoarseningLevel",aaa)) {
         info.setMaxCoarseningLevel(aaa); // default 30
     }
