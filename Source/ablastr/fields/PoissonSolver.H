@@ -51,6 +51,7 @@
 #ifdef AMREX_USE_EB
 #   include <AMReX_EBFabFactory.H>
 #endif
+#include <AMReX_GMRES_MLMG.H>
 
 #include <array>
 #include <optional>
@@ -428,6 +429,10 @@ computePhi (
         amrex::ParmParse pp2("mlmg");
         int xxx;
         amrex::Real yyy;
+
+        int solver_type = 0; // 0 = MLMG, 1 = GMRES
+        pp2.query("solver_type",solver_type);            
+        
         if (pp2.query("setPreSmooth",xxx)) {
             mlmg.setPreSmooth(xxx); // default 2
         }
@@ -473,12 +478,16 @@ computePhi (
             mlmg.setFinalFillBC(true);
         }
 
-
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
+
+        amrex::GMRESMLMG gmsolve(mlmg);
         
         // Solve Poisson equation at lev
-        mlmg.solve( {phi[lev]}, {rho[lev]},
-                     relative_tolerance, absolute_tolerance );
+        if (solver_type == 0) {
+            mlmg.solve( {phi[lev]}, {rho[lev]}, relative_tolerance, absolute_tolerance );
+        } else {
+            gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
+        }
 
         const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
 
