@@ -489,34 +489,6 @@ computePhi (
             gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
         }
 
-        auto & warpx = WarpX::GetInstance();
-        // EB: use AMReX to directly calculate the electric field since with EB's the
-        // simple finite difference scheme in WarpX::computeE sometimes fails
-
-        // TODO: maybe make this a helper function or pass Efield_fp directly
-        amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
-        e_field.push_back(
-#if defined(WARPX_DIM_1D_Z)
-            amrex::Array<amrex::MultiFab*, 1>{
-                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
-            }
-#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
-            amrex::Array<amrex::MultiFab*, 2>{
-                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
-                    }
-#elif defined(WARPX_DIM_3D)
-            amrex::Array<amrex::MultiFab *, 3>{
-                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
-                    }
-#endif
-            );
-        
-
-        mlmg.getFluxes(e_field, phi);
-
         const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
 
         amrex::Print()<< "MLMG time = "
@@ -548,6 +520,33 @@ computePhi (
                     post_phi_calculation.value()(mlmg, lev);
                 }
             }
+        } else {
+
+            auto & warpx = WarpX::GetInstance();
+            // EB: use AMReX to directly calculate the electric field since with EB's the
+            // simple finite difference scheme in WarpX::computeE sometimes fails
+
+            // TODO: maybe make this a helper function or pass Efield_fp directly
+            amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
+            e_field.push_back(
+#if defined(WARPX_DIM_1D_Z)
+                amrex::Array<amrex::MultiFab*, 1>{
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
+            }
+#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+                amrex::Array<amrex::MultiFab*, 2>{
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
+                        }
+#elif defined(WARPX_DIM_3D)
+                amrex::Array<amrex::MultiFab *, 3>{
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, 0),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
+                        }
+#endif
+                );
+            linop->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
         }
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
