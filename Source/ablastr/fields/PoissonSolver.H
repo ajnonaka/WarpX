@@ -547,6 +547,9 @@ computePhi (
 #endif
                 );
             linop->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
+            for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+                e_field[0][dir]->mult(-1.);
+            }
         }
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
