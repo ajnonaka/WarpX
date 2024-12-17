@@ -259,7 +259,6 @@ computePhi (
 
     amrex::LPInfo info;
 
-    amrex::Print() << "HERE LPInfo\n";
     amrex::ParmParse pp1("lpinfo");
 
     int aaa;
@@ -424,8 +423,6 @@ computePhi (
         mlmg.setMaxIter(max_iters);
         mlmg.setAlwaysUseBNorm((max_norm_b > 0));
 
-        amrex::Print() << "HERE MLMG\n";
-
         amrex::ParmParse pp2("mlmg");
         int xxx;
         amrex::Real yyy;
@@ -480,14 +477,18 @@ computePhi (
 
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
 
-        amrex::GMRESMLMG gmsolve(mlmg);
-        
         // Solve Poisson equation at lev
         if (solver_type == 0) {
             mlmg.solve( {phi[lev]}, {rho[lev]}, relative_tolerance, absolute_tolerance );
         } else {
+            amrex::GMRESMLMG gmsolve(mlmg);
             gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
         }
+
+#if 0
+        amrex::VisMF::Write(*rho[lev],"rho");
+        amrex::VisMF::Write(*phi[lev],"phi");
+#endif
 
         const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
 
@@ -520,37 +521,45 @@ computePhi (
                     post_phi_calculation.value()(mlmg, lev);
                 }
             }
-        } else {
+        }
 
-            auto & warpx = WarpX::GetInstance();
-            // EB: use AMReX to directly calculate the electric field since with EB's the
-            // simple finite difference scheme in WarpX::computeE sometimes fails
+        // create an alieas to the WarpX Efield
+        auto & warpx = WarpX::GetInstance();
 
-            // TODO: maybe make this a helper function or pass Efield_fp directly
-            amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
-            e_field.push_back(
+        amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
+        e_field.push_back(
 #if defined(WARPX_DIM_1D_Z)
-                amrex::Array<amrex::MultiFab*, 1>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
+            amrex::Array<amrex::MultiFab*, 1>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
             }
 #elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
-                amrex::Array<amrex::MultiFab*, 2>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
-                        }
+            amrex::Array<amrex::MultiFab*, 2>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
 #elif defined(WARPX_DIM_3D)
-                amrex::Array<amrex::MultiFab *, 3>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, 0),
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, 0)
-                        }
+            amrex::Array<amrex::MultiFab *, 3>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
 #endif
-                );
+        );
+
+        if (solver_type == 1) {
             linop->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
             for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
-                e_field[0][dir]->mult(-1.);
+                e_field[lev][dir]->mult(-1.);
             }
         }
+
+#if 0
+            amrex::VisMF::Write(*e_field[lev][0],"Ex");
+            amrex::VisMF::Write(*e_field[lev][1],"Ey");
+#if defined(WARPX_DIM_3D)
+            amrex::VisMF::Write(*e_field[lev][2],"Ez");
+#endif
+#endif
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
 
