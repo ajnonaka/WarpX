@@ -486,6 +486,8 @@ computePhi (
             gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
         }
 
+        linop->postSolve({phi[lev]});
+
 #if 0
         amrex::VisMF::Write(*rho[lev],"rho");
         amrex::VisMF::Write(*phi[lev],"phi");
