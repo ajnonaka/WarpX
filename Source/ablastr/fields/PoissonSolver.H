@@ -484,9 +484,10 @@ computePhi (
         } else {
             amrex::GMRESMLMG gmsolve(mlmg);
             gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
+            amrex::Vector<amrex::MultiFab> vmf;
+            vmf.emplace_back(*phi[lev], amrex::make_alias, 0, phi[lev]->nComp());
+            linop->postSolve(vmf);
         }
-
-        linop->postSolve({phi[lev]});
 
 #if 0
         amrex::VisMF::Write(*rho[lev],"rho");
