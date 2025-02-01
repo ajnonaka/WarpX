@@ -3,7 +3,7 @@
 #SBATCH -C cpu
 #SBATCH -q debug
 #SBATCH -J 256cpu
-#SBATCH -t 00:30:00
+#SBATCH -t 00:05:00
 
 #OpenMP settings:
 export OMP_NUM_THREADS=1
