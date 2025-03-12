@@ -10,7 +10,6 @@
 #include "Diagnostics/ParticleDiag/ParticleDiag.H"
 #include "FieldIO.H"
 #include "Particles/Filter/FilterFunctors.H"
-#include "Particles/NamedComponentParticleContainer.H"
 #include "Utils/TextMsg.H"
 #include "Utils/Parser/ParserUtils.H"
 #include "Utils/RelativeCellPosition.H"
@@ -402,6 +401,24 @@ WarpXOpenPMDPlot::~WarpXOpenPMDPlot ()
   }
 }
 
+void WarpXOpenPMDPlot::flushCurrent (bool isBTD) const
+{
+     WARPX_PROFILE("WarpXOpenPMDPlot::flushCurrent");
+
+     auto hasOption = m_OpenPMDoptions.find("FlattenSteps");
+    const bool flattenSteps = isBTD && (m_Series->backend() == "ADIOS2") && (hasOption != std::string::npos);
+
+     openPMD::Iteration currIteration = GetIteration(m_CurrentStep, isBTD);
+     if (flattenSteps) {
+         // delayed until all fields and particles are registered for flush
+         // and dumped once via flattenSteps
+         currIteration.seriesFlush(  "adios2.engine.preferred_flush_target = \"buffer\"" );
+     }
+     else {
+         currIteration.seriesFlush();
+     }
+}
+
 std::string
 WarpXOpenPMDPlot::GetFileName (std::string& filepath)
 {
@@ -532,7 +549,6 @@ WarpXOpenPMDPlot::WriteOpenPMDParticles (const amrex::Vector<ParticleDiag>& part
 WARPX_PROFILE("WarpXOpenPMDPlot::WriteOpenPMDParticles()");
 
 for (const auto & particle_diag : particle_diags) {
-
     WarpXParticleContainer* pc = particle_diag.getParticleContainer();
     PinnedMemoryParticleContainer* pinned_pc = particle_diag.getPinnedParticleContainer();
     if (isBTD || use_pinned_pc) {
@@ -591,45 +607,54 @@ for (const auto & particle_diag : particle_diags) {
         storePhiOnParticles( tmp, WarpX::electrostatic_solver_id, !use_pinned_pc );
     }
 
-    // names of amrex::Real and int particle attributes in SoA data
+    // names of amrex::ParticleReal and int particle attributes in SoA data
+    auto const rn = tmp.GetRealSoANames();
+    auto const in = tmp.GetIntSoANames();
     amrex::Vector<std::string> real_names;
-    amrex::Vector<std::string> int_names;
-    amrex::Vector<int> int_flags;
-    amrex::Vector<int> real_flags;
-    // see openPMD ED-PIC extension for namings
-    // note: an underscore separates the record name from its component
-    //       for non-scalar records
-    // note: in RZ, we reconstruct x,y,z positions from r,z,theta in WarpX
+    amrex::Vector<std::string> int_names(in.begin(), in.end());
+
+    // transform names to openPMD, separated by underscores
+    {
+        // see openPMD ED-PIC extension for namings
+        // note: an underscore separates the record name from its component
+        //       for non-scalar records
+        // note: in RZ, we reconstruct x,y,z positions from r,z,theta in WarpX
 #if !defined (WARPX_DIM_1D_Z)
-    real_names.push_back("position_x");
+        real_names.push_back("position_x");
 #endif
 #if defined (WARPX_DIM_3D) || defined(WARPX_DIM_RZ)
-    real_names.push_back("position_y");
+        real_names.push_back("position_y");
 #endif
-    real_names.push_back("position_z");
-    real_names.push_back("weighting");
-    real_names.push_back("momentum_x");
-    real_names.push_back("momentum_y");
-    real_names.push_back("momentum_z");
-    // get the names of the real comps
-    real_names.resize(tmp.NumRealComps());
-    auto runtime_rnames = tmp.getParticleRuntimeComps();
-    for (auto const& x : runtime_rnames)
-    {
-        real_names[x.second+PIdx::nattribs] = detail::snakeToCamel(x.first);
+        real_names.push_back("position_z");
+        real_names.push_back("weighting");
+        real_names.push_back("momentum_x");
+        real_names.push_back("momentum_y");
+        real_names.push_back("momentum_z");
     }
-    // plot any "extra" fields by default
-    real_flags = particle_diag.m_plot_flags;
-    real_flags.resize(tmp.NumRealComps(), 1);
-    // and the names
-    int_names.resize(tmp.NumIntComps());
-    auto runtime_inames = tmp.getParticleRuntimeiComps();
-    for (auto const& x : runtime_inames)
+    for (size_t i = real_names.size(); i < rn.size(); ++i)
     {
-        int_names[x.second+0] = detail::snakeToCamel(x.first);
+        real_names.push_back(rn[i]);
     }
-    // plot by default
-    int_flags.resize(tmp.NumIntComps(), 1);
+
+    for (size_t i = PIdx::nattribs; i < rn.size(); ++i)
+    {
+        real_names[i] = detail::snakeToCamel(rn[i]);
+    }
+
+    amrex::Vector<int> real_flags = particle_diag.m_plot_flags;
+    real_flags.resize(tmp.NumRealComps());
+    for (size_t index = PIdx::nattribs; index < rn.size(); ++index) {
+        real_flags[index] = tmp.h_redistribute_real_comp[index];
+    }
+
+
+    // and the int components
+    amrex::Vector<int> int_flags(tmp.NumIntComps());
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        int_names[i] = detail::snakeToCamel(in[i]);
+        int_flags[i] = tmp.h_redistribute_int_comp[i];
+    }
 
     // real_names contains a list of all real particle attributes.
     // real_flags is 1 or 0, whether quantity is dumped or not.
@@ -641,6 +666,17 @@ for (const auto & particle_diag : particle_diags) {
         real_names, int_names,
         pc->getCharge(), pc->getMass(),
         isBTD, isLastBTDFlush);
+    }
+
+    auto hasOption = m_OpenPMDoptions.find("FlattenSteps");
+    const bool flattenSteps = isBTD && (m_Series->backend() == "ADIOS2") && (hasOption != std::string::npos);
+
+    if (flattenSteps)
+    {
+       // forcing new step so data from each btd batch in
+       // preferred_flush_target="buffer" can be flushed out
+       openPMD::Iteration currIteration = GetIteration(m_CurrentStep, isBTD);
+       currIteration.seriesFlush(R"(adios2.engine.preferred_flush_target = "new_step")");
     }
 }
 
@@ -658,6 +694,7 @@ WarpXOpenPMDPlot::DumpToFile (ParticleContainer* pc,
                     const bool isLastBTDFlush
 )
 {
+    WARPX_PROFILE("WarpXOpenPMDPlot::DumpToFile()");
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(m_Series != nullptr, "openPMD: series must be initialized");
 
     AMREX_ALWAYS_ASSERT(write_real_comp.size() == pc->NumRealComps());
@@ -716,8 +753,7 @@ WarpXOpenPMDPlot::DumpToFile (ParticleContainer* pc,
         SetConstParticleRecordsEDPIC(currSpecies, positionComponents, NewParticleVectorSize, charge, mass);
     }
 
-    // open files from all processors, in case some will not contribute below
-    m_Series->flush();
+    flushCurrent(isBTD);
 
     // dump individual particles
     bool contributed_particles = false;  // did the local MPI rank contribute particles?
@@ -731,7 +767,7 @@ WarpXOpenPMDPlot::DumpToFile (ParticleContainer* pc,
 
             // Do not call storeChunk() with zero-sized particle tiles:
             //   https://github.com/openPMD/openPMD-api/issues/1147
-            //   https://github.com/ECP-WarpX/WarpX/pull/1898#discussion_r745008290
+            //   https://github.com/BLAST-WarpX/warpx/pull/1898#discussion_r745008290
             if (numParticleOnTile == 0) { continue; }
 
             contributed_particles = true;
@@ -753,11 +789,12 @@ WarpXOpenPMDPlot::DumpToFile (ParticleContainer* pc,
     // meta-data is committed for each variable.
     //
     // Refs.:
-    //   https://github.com/ECP-WarpX/WarpX/issues/3389
+    //   https://github.com/BLAST-WarpX/warpx/issues/3389
     //   https://github.com/ornladios/ADIOS2/issues/3455
     //   BP4 (ADIOS 2.8): last MPI rank's `Put` meta-data wins
     //   BP5 (ADIOS 2.8): everyone has to write an empty block
     if (is_resizing_flush && !contributed_particles && isBTD && m_Series->backend() == "ADIOS2") {
+        WARPX_PROFILE("WarpXOpenPMDPlot::ResizeInADIOS()");
         for( auto & [record_name, record] : currSpecies ) {
             for( auto & [comp_name, comp] : record ) {
                 if (comp.constant()) { continue; }
@@ -797,7 +834,7 @@ WarpXOpenPMDPlot::DumpToFile (ParticleContainer* pc,
         }
     }
 
-    m_Series->flush();
+    flushCurrent(isBTD);
 }
 
 void
@@ -1469,7 +1506,7 @@ WarpXOpenPMDPlot::WriteOpenPMDFieldsAll ( //const std::string& filename,
         amrex::Gpu::streamSynchronize();
 #endif
         // Flush data to disk after looping over all components
-        m_Series->flush();
+        flushCurrent(isBTD);
     } // levels loop (i)
 }
 #endif // WARPX_USE_OPENPMD
@@ -1483,6 +1520,7 @@ WarpXParticleCounter::WarpXParticleCounter (ParticleContainer* pc):
     m_MPIRank{amrex::ParallelDescriptor::MyProc()},
     m_MPISize{amrex::ParallelDescriptor::NProcs()}
 {
+    WARPX_PROFILE("WarpXOpenPMDPlot::ParticleCounter()");
     m_ParticleCounterByLevel.resize(pc->finestLevel()+1);
     m_ParticleOffsetAtRank.resize(pc->finestLevel()+1);
     m_ParticleSizeAtRank.resize(pc->finestLevel()+1);
