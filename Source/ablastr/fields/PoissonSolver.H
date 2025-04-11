@@ -57,6 +57,8 @@
 #include <optional>
 #include <stdexcept>
 
+#include "WarpX.H"
+
 
 namespace ablastr::fields {
 
