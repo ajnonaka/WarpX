@@ -533,8 +533,10 @@ computePhi (
         rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
         
 #if 0
-        amrex::VisMF::Write(*rho[lev],"rho");
-        amrex::VisMF::Write(*phi[lev],"phi");
+        amrex::VisMF::Write(rho_hack,"a_rho_hack");
+        amrex::VisMF::Write(phi_hack,"a_phi_hack");
+        amrex::VisMF::Write(*rho[lev],"a_rho");
+        amrex::VisMF::Write(*phi[lev],"a_phi");
 #endif
 
         const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
@@ -567,13 +569,13 @@ if (eb_enabled || is_rz) {
             // In the presence of EB or RZ: the solver assumes that the beam is
             // propagating along  one of the axes of the grid, i.e. that only *one*
             // of the components of `beta` is non-negligible.
-            auto linop_nodelap = std::make_unique<amrex::MLEBNodeFDLaplacian>();
+            auto linop_distributed_nodelap = std::make_unique<amrex::MLEBNodeFDLaplacian>();
             if (eb_enabled) {
 #if defined(AMREX_USE_EB)
                 if constexpr(std::is_same_v<void, T_FArrayBoxFactory>) {
                     throw std::runtime_error("EB requested by eb_farray_box_factory not provided!");
                 } else {
-                    linop_nodelap->define(
+                    linop_distributed_nodelap->define(
                         amrex::Vector<amrex::Geometry>{geom[lev]},
                         amrex::Vector<amrex::BoxArray>{grids[lev]},
                         amrex::Vector<amrex::DistributionMapping>{dmap[lev]},
@@ -585,7 +587,7 @@ if (eb_enabled || is_rz) {
             }
             else {
                 // TODO: rather use MLNodeTensorLaplacian (for RZ w/o EB) here? Semi-Coarsening would be nice here
-                linop_nodelap->define(
+                linop_distributed_nodelap->define(
                     amrex::Vector<amrex::Geometry>{geom[lev]},
                     amrex::Vector<amrex::BoxArray>{grids[lev]},
                     amrex::Vector<amrex::DistributionMapping>{dmap[lev]},
@@ -597,10 +599,10 @@ if (eb_enabled || is_rz) {
             // one of the axes of the grid, i.e. that only *one* of the
             // components of `beta` is non-negligible. // we use this
 #if defined(WARPX_DIM_RZ)
-            linop_nodelap->setRZ(true);
-            linop_nodelap->setSigma({0._rt, 1._rt-beta_solver[1]*beta_solver[1]});
+            linop_distributed_nodelap->setRZ(true);
+            linop_distributed_nodelap->setSigma({0._rt, 1._rt-beta_solver[1]*beta_solver[1]});
 #else
-            linop_nodelap->setSigma({AMREX_D_DECL(
+            linop_distributed_nodelap->setSigma({AMREX_D_DECL(
                 1._rt-beta_solver[0]*beta_solver[0],
                 1._rt-beta_solver[1]*beta_solver[1],
                 1._rt-beta_solver[2]*beta_solver[2])});
@@ -611,9 +613,9 @@ if (eb_enabled || is_rz) {
                     // if the EB potential only depends on time, the potential can be passed
                     // as a float instead of a callable
                     if (boundary_handler.phi_EB_only_t) {
-                        linop_nodelap->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
+                        linop_distributed_nodelap->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
                     } else {
-                        linop_nodelap->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
+                        linop_distributed_nodelap->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
                     }
                 } else
                 {
@@ -622,18 +624,18 @@ if (eb_enabled || is_rz) {
                 }
             }
 #endif
-            linop_distributed = std::move(linop_nodelap);
+            linop_distributed = std::move(linop_distributed_nodelap);
         } else {
             // In the absence of EB and RZ: use a more generic solver
             // that can handle beams propagating in any direction
-            auto linop_tenslap = std::make_unique<amrex::MLNodeTensorLaplacian>(
+            auto linop_distributed_tenslap = std::make_unique<amrex::MLNodeTensorLaplacian>(
                 amrex::Vector<amrex::Geometry>{geom[lev]},
                 amrex::Vector<amrex::BoxArray>{grids[lev]},
                 amrex::Vector<amrex::DistributionMapping>{dmap[lev]},
                 info
             );
-            linop_tenslap->setBeta(beta_solver); // for the non-axis-aligned solver
-            linop_distributed = std::move(linop_tenslap);
+            linop_distributed_tenslap->setBeta(beta_solver); // for the non-axis-aligned solver
+            linop_distributed = std::move(linop_distributed_tenslap);
         }
 
         // Level 0 domain boundary
@@ -644,9 +646,9 @@ if (eb_enabled || is_rz) {
                 amrex::LinOpBCType::Dirichlet
             )};
             amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> const hibc = lobc;
-            linop->setDomainBC(lobc, hibc);
+            linop_distributed->setDomainBC(lobc, hibc);
         } else {
-            linop->setDomainBC(boundary_handler.lobc, boundary_handler.hibc);
+            linop_distributed->setDomainBC(boundary_handler.lobc, boundary_handler.hibc);
         }
 
         // Solve the Poisson equation
