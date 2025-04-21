@@ -532,7 +532,7 @@ computePhi (
         phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
         rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
 
-#if 1
+#if 0
         amrex::VisMF::Write(rho_hack,"a_rho_hack");
         amrex::VisMF::Write(phi_hack,"a_phi_hack");
         amrex::VisMF::Write(*rho[lev],"a_rho");
@@ -725,13 +725,14 @@ if (eb_enabled || is_rz) {
         );
 
         if (solver_type == 1) {
+            linop_distributed->prepareForSolve();
             linop_distributed->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
             for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
                 e_field[lev][dir]->mult(-1.);
             }
         }
 
-#if 1
+#if 0
             amrex::VisMF::Write(*e_field[lev][0],"Ex");
             amrex::VisMF::Write(*e_field[lev][1],"Ey");
 #if defined(WARPX_DIM_3D)
@@ -740,6 +741,7 @@ if (eb_enabled || is_rz) {
 #endif
 
 ///////////////////////
+            /*
         amrex::Array<amrex::MultiFab *, 2> e_field_hack;
 
         e_field_hack[0] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{0,1}), dm_hack, 1, 1);
@@ -754,6 +756,7 @@ if (eb_enabled || is_rz) {
 
         amrex::VisMF::Write(*e_field_hack[0],"Ex_hack");
         amrex::VisMF::Write(*e_field_hack[1],"Ey_hack");
+            */
 ///////////////////////
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
