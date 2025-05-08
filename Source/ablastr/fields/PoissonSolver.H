@@ -545,7 +545,7 @@ computePhi (
                       << mlmg_time_end_step-mlmg_time_beg_step
                       << " s\n";
 
-    const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
+        const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
         const int ncomp = linop->getNComp();
 
         // needed for solving the levels by levels:
@@ -563,6 +563,8 @@ computePhi (
                                         ng);
         }
 
+///////////////////////
+/*
         std::unique_ptr<amrex::MLNodeLinOp> linop_distributed;
 
 if (eb_enabled || is_rz) {
@@ -739,9 +741,10 @@ if (eb_enabled || is_rz) {
             amrex::VisMF::Write(*e_field[lev][2],"Ez");
 #endif
 #endif
+*/
+///////////////////////
 
 ///////////////////////
-            /*
         amrex::Array<amrex::MultiFab *, 2> e_field_hack;
 
         e_field_hack[0] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{0,1}), dm_hack, 1, 1);
@@ -754,9 +757,32 @@ if (eb_enabled || is_rz) {
             }
         }
 
-        amrex::VisMF::Write(*e_field_hack[0],"Ex_hack");
-        amrex::VisMF::Write(*e_field_hack[1],"Ey_hack");
-            */
+        amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
+        e_field.push_back(
+#if defined(WARPX_DIM_1D_Z)
+            amrex::Array<amrex::MultiFab*, 1>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            amrex::Array<amrex::MultiFab*, 2>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#elif defined(WARPX_DIM_3D)
+            amrex::Array<amrex::MultiFab *, 3>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#endif
+        );
+
+        for (int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+            e_field[lev][dir]->ParallelCopy(*e_field_hack[dir],0,0,1,1,1);
+        }
+
+//        amrex::VisMF::Write(*e_field_hack[0],"Ex_hack");
+//        amrex::VisMF::Write(*e_field_hack[1],"Ey_hack");
 ///////////////////////
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
