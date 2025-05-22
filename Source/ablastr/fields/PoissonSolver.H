@@ -316,9 +316,6 @@ computePhi (
                 continue;
             }
 #endif
-            // Use the Multigrid (MLMG) solver if selected or on refined patches
-            // but first scale rho appropriately
-            rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
 
 #ifdef WARPX_DIM_RZ
             constexpr bool is_rz = true;
@@ -385,23 +382,6 @@ computePhi (
                             1._rt-beta_solver[0]*beta_solver[0],
                             1._rt-beta_solver[1]*beta_solver[1],
                             1._rt-beta_solver[2]*beta_solver[2])});
-#endif
-#if defined(AMREX_USE_EB)
-                if (eb_enabled) {
-                    if constexpr (!std::is_same_v<T_BoundaryHandler, std::nullopt_t>) {
-                        // if the EB potential only depends on time, the potential can be passed
-                        // as a float instead of a callable
-                        if (boundary_handler.phi_EB_only_t) {
-                            linop_nodelap->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
-                        } else {
-                            linop_nodelap->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
-                        }
-                    } else
-                    {
-                        ABLASTR_ALWAYS_ASSERT_WITH_MESSAGE( !is_solver_igf_on_lev0,
-                                                            "EB Poisson solver enabled but no 'boundary_handler' passed!");
-                    }
-                }
 #endif
                 linop = std::move(linop_nodelap);
             } else {
@@ -489,12 +469,37 @@ computePhi (
         }
     }
     
+#if defined(AMREX_USE_EB)
+    if (eb_enabled) {
+        if constexpr (!std::is_same_v<T_BoundaryHandler, std::nullopt_t>) {
+            // if the EB potential only depends on time, the potential can be passed
+            // as a float instead of a callable
+            auto* p = dynamic_cast<amrex::MLEBNodeFDLaplacian*>(linop.get());
+            if (p) {
+                if (boundary_handler.phi_EB_only_t) {
+                    p->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
+                } else {
+                    p->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
+                }
+            }
+        } else
+        {
+            ABLASTR_ALWAYS_ASSERT_WITH_MESSAGE( !is_solver_igf_on_lev0,
+                                                "EB Poisson solver enabled but no 'boundary_handler' passed!");
+        }
+    }
+#endif
+
     for (int lev=0; lev<=finest_level; lev++) {
 
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
 
         amrex::Print() << "HACK solver_type " << solver_type << std::endl;
         
+        // Use the Multigrid (MLMG) solver if selected or on refined patches
+        // but first scale rho appropriately
+        rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
+
         // Solve Poisson equation at lev
         if (solver_type == 0) {
             mlmg->solve( {phi[lev]}, {rho[lev]}, relative_tolerance, absolute_tolerance );
