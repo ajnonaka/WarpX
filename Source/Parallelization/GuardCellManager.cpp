@@ -7,12 +7,14 @@
 
 #include "GuardCellManager.H"
 
-#ifndef WARPX_DIM_RZ
+#if defined(WARPX_DIM_RZ) || defined(WARPX_DIM_RCYLINDER)
+#    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/CylindricalYeeAlgorithm.H"
+#elif defined(WARPX_DIM_RSPHERE)
+#    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/SphericalYeeAlgorithm.H"
+#else
 #    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/CartesianYeeAlgorithm.H"
 #    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/CartesianNodalAlgorithm.H"
 #    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/CartesianCKCAlgorithm.H"
-#else
-#    include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceAlgorithms/CylindricalYeeAlgorithm.H"
 #endif
 #include "Filter/NCIGodfreyFilter.H"
 #include "Utils/Parser/ParserUtils.H"
@@ -47,7 +49,7 @@ guardCellManager::Init (
     const amrex::Vector<amrex::Real>& v_galilean,
     const amrex::Vector<amrex::Real>& v_comoving,
     const bool safe_guard_cells,
-    const int do_multi_J,
+    const int do_psatd_JRhom,
     const bool fft_do_time_averaging,
     const bool do_pml,
     const int do_pml_in_domain,
@@ -125,6 +127,10 @@ guardCellManager::Init (
     ng_alloc_EB = IntVect(ngz);
     ng_alloc_J = IntVect(ngJz);
     amrex::ignore_unused(ngx, ngJx, ngy, ngJy);
+#elif defined(WARPX_DIM_RCYLINDER) || defined(WARPX_DIM_RSPHERE)
+    ng_alloc_EB = IntVect(ngx);
+    ng_alloc_J = IntVect(ngJx);
+    amrex::ignore_unused(ngy, ngJy, ngz, ngJz);
 #endif
 
     // TODO Adding one cell for rho should not be necessary, given that the number of guard cells
@@ -145,13 +151,13 @@ guardCellManager::Init (
         {
             amrex::Real dt_Rho = dt;
             amrex::Real dt_J = 0.5_rt*dt;
-            if (do_multi_J) {
-                // With multi_J + time averaging, particles can move during 2*dt per PIC cycle.
+            if (do_psatd_JRhom) {
+                // With PSATD-JRhom + time averaging, particles can move during 2*dt per PIC cycle.
                 if (fft_do_time_averaging){
                     dt_Rho = 2._rt*dt;
                     dt_J = 2._rt*dt;
                 }
-                // With multi_J but without time averaging, particles can move during dt per PIC
+                // With PSATD-JRhom but without time averaging, particles can move during dt per PIC
                 // cycle for the current deposition as well.
                 else {
                     dt_J = dt;
@@ -216,6 +222,8 @@ guardCellManager::Init (
         auto ngFFT = IntVect(ngFFt_x, ngFFt_z);
 #elif defined(WARPX_DIM_1D_Z)
         auto ngFFT = IntVect(ngFFt_z);
+#elif defined(WARPX_DIM_RCYLINDER) || defined(WARPX_DIM_RSPHERE)
+        auto ngFFT = IntVect(ngFFt_x);
 #endif
 
 #ifdef WARPX_DIM_RZ
@@ -255,13 +263,21 @@ guardCellManager::Init (
         ng_FieldSolverF = ng_alloc_EB;
         ng_FieldSolverG = ng_alloc_EB;
     }
-#ifdef WARPX_DIM_RZ
+#if defined(WARPX_DIM_RZ) || defined(WARPX_DIM_RCYLINDER)
     else if (electromagnetic_solver_id == ElectromagneticSolverAlgo::None ||
              electromagnetic_solver_id == ElectromagneticSolverAlgo::Yee ||
              electromagnetic_solver_id == ElectromagneticSolverAlgo::HybridPIC ) {
         ng_FieldSolver  = CylindricalYeeAlgorithm::GetMaxGuardCell();
         ng_FieldSolverF = CylindricalYeeAlgorithm::GetMaxGuardCell();
         ng_FieldSolverG = CylindricalYeeAlgorithm::GetMaxGuardCell();
+    }
+#elif defined(WARPX_DIM_RSPHERE)
+    else if (electromagnetic_solver_id == ElectromagneticSolverAlgo::None ||
+             electromagnetic_solver_id == ElectromagneticSolverAlgo::Yee ||
+             electromagnetic_solver_id == ElectromagneticSolverAlgo::HybridPIC ) {
+        ng_FieldSolver  = SphericalYeeAlgorithm::GetMaxGuardCell();
+        ng_FieldSolverF = SphericalYeeAlgorithm::GetMaxGuardCell();
+        ng_FieldSolverG = SphericalYeeAlgorithm::GetMaxGuardCell();
     }
 #else
     else {
@@ -317,9 +333,11 @@ guardCellManager::Init (
 
         // If NCI filter, add guard cells in the z direction
         IntVect ng_NCIFilter = IntVect::TheZeroVector();
+#if defined(WARPX_ZINDEX)
         if (do_fdtd_nci_corr) {
             ng_NCIFilter[WARPX_ZINDEX] = NCIGodfreyFilter::m_stencil_width;
         }
+#endif
 
         // Note: communications of guard cells for bilinear filter are handled
         // separately.
