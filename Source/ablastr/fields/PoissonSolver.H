@@ -260,7 +260,8 @@ computePhi (
 #endif
 
     // determine if rho is zero everywhere
-    const amrex::Real max_norm_b = getMaxNormRho(amrex::GetVecOfConstPtrs(rho), finest_level, absolute_tolerance);
+    const amrex::Real max_norm_b = getMaxNormRho(
+        amrex::GetVecOfConstPtrs(rho), finest_level, absolute_tolerance);
 
     static std::unique_ptr<amrex::MLMG> mlmg;
     static std::unique_ptr<amrex::MLNodeLinOp> linop;
@@ -496,8 +497,6 @@ computePhi (
 
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
 
-        amrex::Print() << "HACK solver_type " << solver_type << std::endl;
-        
         // Use the Multigrid (MLMG) solver if selected or on refined patches
         // but first scale rho appropriately
         rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
