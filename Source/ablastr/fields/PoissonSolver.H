@@ -450,7 +450,11 @@ computePhi (
             int xxx;
             amrex::Real yyy;
 
-            pp2.query("solver_type",solver_type);            
+            pp2.query("solver_type",solver_type);
+            if (solver_type == 0) {
+                amrex::Warning("solver_type=0 not supported for the poissontest 1 GPU feature; switching to solver_type=1");
+                solver_type = 1;
+            }
         
             if (pp2.query("setPreSmooth",xxx)) {
                 mlmg->setPreSmooth(xxx); // default 2
