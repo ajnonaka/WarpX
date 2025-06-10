@@ -322,9 +322,6 @@ computePhi (
                 continue;
             }
 #endif
-            // Use the Multigrid (MLMG) solver if selected or on refined patches
-            // but first scale rho appropriately
-            rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
 
 #ifdef WARPX_DIM_RZ
             constexpr bool is_rz = true;
@@ -416,23 +413,6 @@ computePhi (
                             1._rt-beta_solver[1]*beta_solver[1],
                             1._rt-beta_solver[2]*beta_solver[2])});
 #endif
-#if defined(AMREX_USE_EB)
-                if (eb_enabled) {
-                    if constexpr (!std::is_same_v<T_BoundaryHandler, std::nullopt_t>) {
-                        // if the EB potential only depends on time, the potential can be passed
-                        // as a float instead of a callable
-                        if (boundary_handler.phi_EB_only_t) {
-                            linop_nodelap->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
-                        } else {
-                            linop_nodelap->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
-                        }
-                    } else
-                    {
-                        ABLASTR_ALWAYS_ASSERT_WITH_MESSAGE( !is_solver_igf_on_lev0,
-                                                            "EB Poisson solver enabled but no 'boundary_handler' passed!");
-                    }
-                }
-#endif
                 linop = std::move(linop_nodelap);
             } else {
                 // In the absence of EB and RZ: use a more generic solver
@@ -516,108 +496,129 @@ computePhi (
                 mlmg->setFinalFillBC(true);
             }
         }
+    }
 
+#if defined(AMREX_USE_EB)
+    if (eb_enabled) {
+        if constexpr (!std::is_same_v<T_BoundaryHandler, std::nullopt_t>) {
+            // if the EB potential only depends on time, the potential can be passed
+            // as a float instead of a callable
+            auto* p = dynamic_cast<amrex::MLEBNodeFDLaplacian*>(linop.get());
+            if (boundary_handler.phi_EB_only_t) {
+                p->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
+            } else {
+                p->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
+            }
+        } else
+        {
+            ABLASTR_ALWAYS_ASSERT_WITH_MESSAGE( !is_solver_igf_on_lev0,
+                                                "EB Poisson solver enabled but no 'boundary_handler' passed!");
+        }
+    }
+#endif
+    for (int lev=0; lev<=finest_level; lev++) {
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
+
+        // Use the Multigrid (MLMG) solver if selected or on refined patches
+        // but first scale rho appropriately
+        rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
 
         amrex::MultiFab phi_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 1);
         amrex::MultiFab rho_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 0);
 
-        for (int lev=0; lev<=finest_level; lev++) {
-            phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
-            rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
+        phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
+        rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
         
-            // Solve Poisson equation at lev
-            if (solver_type == 0) {
-                mlmg->solve( {&phi_hack}, {&rho_hack}, relative_tolerance, absolute_tolerance );
-            } else {
-                amrex::GMRESMLMG gmsolve(*mlmg);
-                gmsolve.solve( phi_hack, rho_hack, relative_tolerance, absolute_tolerance );
-            }
-            linop->postSolve({&phi_hack});
+        // Solve Poisson equation at lev
+        if (solver_type == 0) {
+            mlmg->solve( {&phi_hack}, {&rho_hack}, relative_tolerance, absolute_tolerance );
+        } else {
+            amrex::GMRESMLMG gmsolve(*mlmg);
+            gmsolve.solve( phi_hack, rho_hack, relative_tolerance, absolute_tolerance );
+        }
+        linop->postSolve({&phi_hack});
 
-            phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
-            rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
+        phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
+        rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
 
 #if 0
-            amrex::VisMF::Write(*rho[lev],"rho");
-            amrex::VisMF::Write(*phi[lev],"phi");
+        amrex::VisMF::Write(*rho[lev],"rho");
+        amrex::VisMF::Write(*phi[lev],"phi");
 #endif
 
-            const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
+        const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
 
-            amrex::Print()<< "MLMG time = "
-                          << mlmg_time_end_step-mlmg_time_beg_step
-                          << " s\n";
+        amrex::Print()<< "MLMG time = "
+                      << mlmg_time_end_step-mlmg_time_beg_step
+                      << " s\n";
 
-            const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
-            const int ncomp = linop->getNComp();
+        const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
+        const int ncomp = linop->getNComp();
 
-            // needed for solving the levels by levels:
-            // - coarser level is initial guess for finer level
-            // - coarser level provides boundary values for finer level patch
-            // Interpolation from phi[lev] to phi[lev+1]
-            // (This provides both the boundary conditions and initial guess for phi[lev+1])
-            if (lev < finest_level) {
-                interpolatePhiBetweenLevels(phi[lev],
-                                            phi[lev+1],
-                                            geom[lev],
-                                            do_single_precision_comms,
-                                            refratio,
-                                            ncomp,
-                                            ng);
-            }
-
-            if (solver_type == 0) {
-                // Run additional operations, such as calculation of the E field for embedded boundaries
-                if constexpr (!std::is_same_v<T_PostPhiCalculationFunctor, std::nullopt_t>) {
-                    if (post_phi_calculation.has_value()) {
-                        post_phi_calculation.value()(*mlmg, lev);
-                    }
-                }
-            }
-
-            amrex::Array<amrex::MultiFab *, 2> e_field_hack;
-
-            e_field_hack[0] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{0,1}), dm_hack, 1, 1);
-            e_field_hack[1] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{1,0}), dm_hack, 1, 1);
-
-            if (solver_type == 1) {
-                linop->compGrad(0, e_field_hack, phi_hack, amrex::MLLinOp::Location::CellCenter);
-                for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
-                    e_field_hack[dir]->mult(-1.);
-                }
-            }
-
-            // create an alieas to the WarpX Efield
-            auto & warpx = WarpX::GetInstance();
-
-            amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
-            e_field.push_back(
-#if defined(WARPX_DIM_1D_Z)
-                amrex::Array<amrex::MultiFab*, 1>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
-                }
-#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
-                amrex::Array<amrex::MultiFab*, 2>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
-                        warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
-                        }
-#elif defined(WARPX_DIM_3D)
-                amrex::Array<amrex::MultiFab *, 3>{
-                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
-                        warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, lev),
-                        warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
-                        }
-#endif
-                );
-
-            for (int dir=0; dir<AMREX_SPACEDIM; ++dir) {
-                e_field[lev][dir]->ParallelCopy(*e_field_hack[dir],0,0,1,1,1);
-            }
-
-            rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
+        // needed for solving the levels by levels:
+        // - coarser level is initial guess for finer level
+        // - coarser level provides boundary values for finer level patch
+        // Interpolation from phi[lev] to phi[lev+1]
+        // (This provides both the boundary conditions and initial guess for phi[lev+1])
+        if (lev < finest_level) {
+            interpolatePhiBetweenLevels(phi[lev],
+                                        phi[lev+1],
+                                        geom[lev],
+                                        do_single_precision_comms,
+                                        refratio,
+                                        ncomp,
+                                        ng);
         }
 
+        if (solver_type == 0) {
+            // Run additional operations, such as calculation of the E field for embedded boundaries
+            if constexpr (!std::is_same_v<T_PostPhiCalculationFunctor, std::nullopt_t>) {
+                if (post_phi_calculation.has_value()) {
+                    post_phi_calculation.value()(*mlmg, lev);
+                }
+            }
+        }
+
+        amrex::Array<amrex::MultiFab *, 2> e_field_hack;
+
+        e_field_hack[0] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{0,1}), dm_hack, 1, 1);
+        e_field_hack[1] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{1,0}), dm_hack, 1, 1);
+
+        if (solver_type == 1) {
+            linop->compGrad(0, e_field_hack, phi_hack, amrex::MLLinOp::Location::CellCenter);
+            for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+                e_field_hack[dir]->mult(-1.);
+            }
+        }
+
+        // create an alieas to the WarpX Efield
+        auto & warpx = WarpX::GetInstance();
+
+        amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
+        e_field.push_back(
+#if defined(WARPX_DIM_1D_Z)
+            amrex::Array<amrex::MultiFab*, 1>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            amrex::Array<amrex::MultiFab*, 2>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+                    }
+#elif defined(WARPX_DIM_3D)
+            amrex::Array<amrex::MultiFab *, 3>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, lev),
+                    warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+                    }
+#endif
+            );
+
+        for (int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+            e_field[lev][dir]->ParallelCopy(*e_field_hack[dir],0,0,1,1,1);
+        }
+
+        rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
     } // loop over lev(els)
 } // computePhi
 } // namespace ablastr::fields
