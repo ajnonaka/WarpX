@@ -265,7 +265,6 @@ computePhi (
 
     static std::unique_ptr<amrex::MLMG> mlmg;
     static std::unique_ptr<amrex::MLNodeLinOp> linop;
-
     static std::unique_ptr<amrex::MLNodeLinOp> linop_distributed;
     
     static int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
@@ -552,7 +551,7 @@ computePhi (
         amrex::MultiFab phi_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 1);
         amrex::MultiFab rho_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 0);
 
-        phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
+        phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 0, 0);
         rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
         
         // Solve Poisson equation at lev
@@ -565,9 +564,6 @@ computePhi (
         linop->postSolve({&phi_hack});
 
         phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
-        rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
-
-        linop_distributed->postSolve({phi[lev]});
 
 #if 0
         amrex::VisMF::Write(*rho[lev],"rho");
@@ -631,6 +627,11 @@ computePhi (
             );
 
         if (solver_type == 1) {
+            static bool called_prepare = false;
+            if (!called_prepare) {
+                linop_distributed->prepareForSolve();
+                called_prepare = true;
+            }
             linop_distributed->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
             for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
                 e_field[lev][dir]->mult(-1.);
