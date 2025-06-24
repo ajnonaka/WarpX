@@ -266,6 +266,8 @@ computePhi (
     static std::unique_ptr<amrex::MLMG> mlmg;
     static std::unique_ptr<amrex::MLNodeLinOp> linop;
 
+    static std::unique_ptr<amrex::MLNodeLinOp> linop_distributed;
+    
     static int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
 
     static int solver_type = 0; // 0 = MLMG, 1 = GMRES
@@ -278,7 +280,7 @@ computePhi (
         amrex::LPInfo info;
 
         // ensure memory is freed at the end of the program
-        amrex::ExecOnFinalize([&] () { mlmg.reset(); linop.reset(); });
+        amrex::ExecOnFinalize([&] () { mlmg.reset(); linop.reset(); linop_distributed.reset();});
 
         amrex::ParmParse pp1("lpinfo");
 
@@ -376,6 +378,7 @@ computePhi (
                 // propagating along  one of the axes of the grid, i.e. that only *one*
                 // of the components of `beta` is non-negligible.
                 auto linop_nodelap = std::make_unique<amrex::MLEBNodeFDLaplacian>();
+                auto linop_nodelap_distributed = std::make_unique<amrex::MLEBNodeFDLaplacian>();
                 if (eb_enabled) {
 #if defined(AMREX_USE_EB)
                     if constexpr(std::is_same_v<void, T_FArrayBoxFactory>) {
@@ -387,6 +390,13 @@ computePhi (
                             amrex::Vector<amrex::DistributionMapping>{dm_hack},
                             info,
                             amrex::Vector<amrex::EBFArrayBoxFactory const*>{factories_hack}
+                            );
+                        linop_nodelap_distributed->define(
+                            amrex::Vector<amrex::Geometry>{geom[lev]},
+                            amrex::Vector<amrex::BoxArray>{grids[lev]},
+                            amrex::Vector<amrex::DistributionMapping>{dmap[lev]},
+                            info,
+                            amrex::Vector<amrex::EBFArrayBoxFactory const*>{eb_farray_box_factory.value()[lev]}
                             );
                     }
 #endif
@@ -407,13 +417,20 @@ computePhi (
 #if defined(WARPX_DIM_RZ)
                 linop_nodelap->setRZ(true);
                 linop_nodelap->setSigma({0._rt, 1._rt-beta_solver[1]*beta_solver[1]});
+                linop_nodelap_distributed->setRZ(true);
+                linop_nodelap_distributed->setSigma({0._rt, 1._rt-beta_solver[1]*beta_solver[1]});
 #else
                 linop_nodelap->setSigma({AMREX_D_DECL(
                             1._rt-beta_solver[0]*beta_solver[0],
                             1._rt-beta_solver[1]*beta_solver[1],
                             1._rt-beta_solver[2]*beta_solver[2])});
+                linop_nodelap_distributed->setSigma({AMREX_D_DECL(
+                            1._rt-beta_solver[0]*beta_solver[0],
+                            1._rt-beta_solver[1]*beta_solver[1],
+                            1._rt-beta_solver[2]*beta_solver[2])});
 #endif
                 linop = std::move(linop_nodelap);
+                linop_distributed = std::move(linop_nodelap_distributed);
             } else {
                 // In the absence of EB and RZ: use a more generic solver
                 // that can handle beams propagating in any direction
@@ -436,8 +453,10 @@ computePhi (
                         )};
                 amrex::Array<amrex::LinOpBCType, AMREX_SPACEDIM> const hibc = lobc;
                 linop->setDomainBC(lobc, hibc);
+                linop_distributed->setDomainBC(lobc, hibc);
             } else {
                 linop->setDomainBC(boundary_handler.lobc, boundary_handler.hibc);
+                linop_distributed->setDomainBC(boundary_handler.lobc, boundary_handler.hibc);
             }
 
             // Solve the Poisson equation
@@ -508,10 +527,13 @@ computePhi (
             // if the EB potential only depends on time, the potential can be passed
             // as a float instead of a callable
             auto* p = dynamic_cast<amrex::MLEBNodeFDLaplacian*>(linop.get());
+            auto* p_distributed = dynamic_cast<amrex::MLEBNodeFDLaplacian*>(linop_distributed.get());
             if (boundary_handler.phi_EB_only_t) {
                 p->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
+                p_distributed->setEBDirichlet(boundary_handler.potential_eb_t(current_time.value()));
             } else {
                 p->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
+                p_distributed->setEBDirichlet(boundary_handler.getPhiEB(current_time.value()));
             }
         } else
         {
@@ -544,6 +566,8 @@ computePhi (
 
         phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
         rho[lev]->ParallelCopy(rho_hack, 0, 0, 1, 0, 0);
+
+        linop_distributed->postSolve({phi[lev]});
 
 #if 0
         amrex::VisMF::Write(*rho[lev],"rho");
@@ -583,18 +607,6 @@ computePhi (
             }
         }
 
-        amrex::Array<amrex::MultiFab *, 2> e_field_hack;
-
-        e_field_hack[0] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{0,1}), dm_hack, 1, 1);
-        e_field_hack[1] = new amrex::MultiFab(amrex::convert(ba_hack, amrex::IntVect{1,0}), dm_hack, 1, 1);
-
-        if (solver_type == 1) {
-            linop->compGrad(0, e_field_hack, phi_hack, amrex::MLLinOp::Location::CellCenter);
-            for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
-                e_field_hack[dir]->mult(-1.);
-            }
-        }
-
         // create an alieas to the WarpX Efield
         auto & warpx = WarpX::GetInstance();
 
@@ -618,8 +630,11 @@ computePhi (
 #endif
             );
 
-        for (int dir=0; dir<AMREX_SPACEDIM; ++dir) {
-            e_field[lev][dir]->ParallelCopy(*e_field_hack[dir],0,0,1,1,1);
+        if (solver_type == 1) {
+            linop_distributed->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
+            for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+                e_field[lev][dir]->mult(-1.);
+            }
         }
 
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
