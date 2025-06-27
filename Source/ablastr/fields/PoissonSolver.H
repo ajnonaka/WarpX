@@ -271,8 +271,8 @@ computePhi (
 
     static int solver_type = 0; // 0 = MLMG, 1 = GMRES
 
-    static amrex::BoxArray ba_hack;
-    static amrex::DistributionMapping dm_hack;
+    static amrex::BoxArray ba_reducedgrid;
+    static amrex::DistributionMapping dm_reducedgrid;
     
     if (!mlmg) {
     
@@ -351,26 +351,44 @@ computePhi (
 
             auto & warpx = WarpX::GetInstance();
 
-            // create a new boxarray with one box
-            amrex::Box domain_hack = grids[lev].minimalBox();
-            ba_hack.define(domain_hack);
+            amrex::ParmParse pp2("mlmg");
+            int xxx;
+            amrex::Real yyy;
+
+            amrex::IntVect max_grid_size_poisson(AMREX_D_DECL(8192,8192,8192));
+            if (pp2.query("max_grid_size_poisson_x",xxx)) {
+                max_grid_size_poisson[0] = xxx;
+            }
+            if (pp2.query("max_grid_size_poisson_y",xxx)) {
+                max_grid_size_poisson[1] = xxx;
+            }
+#if (AMREX_SPACEDIM == 3)
+            if (pp2.query("max_grid_size_poisson_z",xxx)) {
+                max_grid_size_poisson[2] = xxx;
+            }
+#endif
+           
+            // create a new boxarray with reduced grids
+            amrex::Box domain_reducedgrid = grids[lev].minimalBox();
+            ba_reducedgrid.define(domain_reducedgrid);
+            ba_reducedgrid.maxSize(max_grid_size_poisson);
         
             // create the distribution map
-            dm_hack.define(ba_hack);
+            dm_reducedgrid.define(ba_reducedgrid);
 
             // don't need to recreate geometry since we can reuse
 
             // need std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> >
-            std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > field_factory_hack;
+            std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > field_factory_reducedgrid;
             const amrex::IntVect max_guard = warpx.getngEB();
-            field_factory_hack = amrex::makeEBFabFactory(geom[lev], ba_hack, dm_hack, 
+            field_factory_reducedgrid = amrex::makeEBFabFactory(geom[lev], ba_reducedgrid, dm_reducedgrid, 
                                                          {max_guard[0], max_guard[1]},
                                                          amrex::EBSupport::full);
 
-            amrex::Vector<amrex::EBFArrayBoxFactory const *> factories_hack;
+            amrex::Vector<amrex::EBFArrayBoxFactory const *> factories_reducedgrid;
 
-            amrex::EBFArrayBoxFactory const& fieldEBFactory_hack = static_cast<amrex::EBFArrayBoxFactory const&>(*field_factory_hack);
-            factories_hack.push_back(&fieldEBFactory_hack);
+            amrex::EBFArrayBoxFactory const& fieldEBFactory_reducedgrid = static_cast<amrex::EBFArrayBoxFactory const&>(*field_factory_reducedgrid);
+            factories_reducedgrid.push_back(&fieldEBFactory_reducedgrid);
         
             if (eb_enabled || is_rz) {
                 // In the presence of EB or RZ: the solver assumes that the beam is
@@ -385,10 +403,10 @@ computePhi (
                     } else {
                         linop_nodelap->define(
                             amrex::Vector<amrex::Geometry>{geom[lev]},
-                            amrex::Vector<amrex::BoxArray>{ba_hack},
-                            amrex::Vector<amrex::DistributionMapping>{dm_hack},
+                            amrex::Vector<amrex::BoxArray>{ba_reducedgrid},
+                            amrex::Vector<amrex::DistributionMapping>{dm_reducedgrid},
                             info,
-                            amrex::Vector<amrex::EBFArrayBoxFactory const*>{factories_hack}
+                            amrex::Vector<amrex::EBFArrayBoxFactory const*>{factories_reducedgrid}
                             );
                         linop_nodelap_distributed->define(
                             amrex::Vector<amrex::Geometry>{geom[lev]},
@@ -463,10 +481,6 @@ computePhi (
             mlmg->setVerbose(verbosity);
             mlmg->setMaxIter(max_iters);
             mlmg->setAlwaysUseBNorm((max_norm_b > 0));
-
-            amrex::ParmParse pp2("mlmg");
-            int xxx;
-            amrex::Real yyy;
 
             pp2.query("solver_type",solver_type);
             if (solver_type == 0) {
@@ -548,22 +562,22 @@ computePhi (
         // but first scale rho appropriately
         rho[lev]->mult(-1._rt / ablastr::constant::SI::ep0);
 
-        amrex::MultiFab phi_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 1);
-        amrex::MultiFab rho_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 0);
+        amrex::MultiFab phi_reducedgrid(amrex::convert(ba_reducedgrid, amrex::IntVect::TheUnitVector()), dm_reducedgrid, 1, 1);
+        amrex::MultiFab rho_reducedgrid(amrex::convert(ba_reducedgrid, amrex::IntVect::TheUnitVector()), dm_reducedgrid, 1, 0);
 
-        phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 0, 0);
-        rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
+        phi_reducedgrid.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
+        rho_reducedgrid.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
         
         // Solve Poisson equation at lev
         if (solver_type == 0) {
-            mlmg->solve( {&phi_hack}, {&rho_hack}, relative_tolerance, absolute_tolerance );
+            mlmg->solve( {&phi_reducedgrid}, {&rho_reducedgrid}, relative_tolerance, absolute_tolerance );
         } else {
             amrex::GMRESMLMG gmsolve(*mlmg);
-            gmsolve.solve( phi_hack, rho_hack, relative_tolerance, absolute_tolerance );
+            gmsolve.solve( phi_reducedgrid, rho_reducedgrid, relative_tolerance, absolute_tolerance );
         }
-        linop->postSolve({&phi_hack});
+        linop->postSolve({&phi_reducedgrid});
 
-        phi[lev]->ParallelCopy(phi_hack, 0, 0, 1, 1, 1);
+        phi[lev]->ParallelCopy(phi_reducedgrid, 0, 0, 1, 1, 1);
 
 #if 0
         amrex::VisMF::Write(*rho[lev],"rho");
