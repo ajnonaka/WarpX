@@ -577,6 +577,7 @@ computePhi (
         }
         linop->postSolve({&phi_reducedgrid});
 
+        phi_reducedgrid.FillBoundary(geom[lev].periodicity());
         phi[lev]->ParallelCopy(phi_reducedgrid, 0, 0, 1, 1, 1);
 
 #if 0
