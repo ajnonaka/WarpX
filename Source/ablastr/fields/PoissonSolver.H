@@ -380,10 +380,10 @@ computePhi (
 
             // need std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> >
             std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > field_factory_reducedgrid;
-            const amrex::IntVect max_guard = warpx.getngEB();
+            const int max_guard = warpx.getngEB().max();
             field_factory_reducedgrid = amrex::makeEBFabFactory(geom[lev], ba_reducedgrid, dm_reducedgrid, 
-                                                         {max_guard[0], max_guard[1]},
-                                                         amrex::EBSupport::full);
+                                                                {max_guard, max_guard, max_guard},
+                                                                amrex::EBSupport::full);
 
             amrex::Vector<amrex::EBFArrayBoxFactory const *> factories_reducedgrid;
 
