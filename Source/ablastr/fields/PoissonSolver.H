@@ -362,9 +362,9 @@ computePhi (
 
             // need std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> >
             std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > field_factory_hack;
-            const amrex::IntVect max_guard = warpx.getngEB();
+            const int max_guard = warpx.getngEB().max();
             field_factory_hack = amrex::makeEBFabFactory(geom[lev], ba_hack, dm_hack, 
-                                                         {max_guard[0], max_guard[1]},
+                                                         {max_guard, max_guard, max_guard},
                                                          amrex::EBSupport::full);
 
             amrex::Vector<amrex::EBFArrayBoxFactory const *> factories_hack;
