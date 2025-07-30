@@ -372,6 +372,8 @@ computePhi (
             amrex::Box domain_reducedgrid = grids[lev].minimalBox();
             ba_reducedgrid.define(domain_reducedgrid);
             ba_reducedgrid.maxSize(max_grid_size_poisson);
+
+            amrex::Print() << "Number of grids in reduced-rank Poisson solve: " << ba_reducedgrid.size() << std::endl;
         
             // create the distribution map
             dm_reducedgrid.define(ba_reducedgrid);
