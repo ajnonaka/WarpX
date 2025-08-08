@@ -53,6 +53,7 @@
 #endif
 #include <AMReX_GMRES_MLMG.H>
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <stdexcept>
@@ -68,7 +69,6 @@ namespace ablastr::fields {
  * \param[in] rho The charge density a given species
  * \param[in] finest_level The most refined mesh refinement level
  * \param[in] absolute_tolerance The absolute convergence threshold for the MLMG solver
- * \param[out] max_norm_rho The maximum L-infinity norm of `rho` across all levels
  */
 inline amrex::Real getMaxNormRho (
     ablastr::fields::ConstMultiLevelScalarField const& rho,
@@ -258,6 +258,11 @@ computePhi (
 #else
             {{ beta[0], beta[1], beta[2] }};
 #endif
+
+    ABLASTR_ALWAYS_ASSERT_WITH_MESSAGE (
+        std::all_of(beta_solver.begin(), beta_solver.end(),
+            [](const auto b){return (b<1.0_rt);}),
+        "Components of beta_solver must be < 1.");
 
     // determine if rho is zero everywhere
     const amrex::Real max_norm_b = getMaxNormRho(
@@ -550,6 +555,19 @@ computePhi (
 
         amrex::MultiFab phi_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 1);
         amrex::MultiFab rho_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 0);
+
+        // Solve the Poisson equation
+        amrex::MLMG mlmg(*linop); // actual solver defined here
+        mlmg.setVerbose(verbosity);
+        mlmg.setMaxIter(max_iters);
+        mlmg.setConvergenceNormType((max_norm_b > 0) ? amrex::MLMGNormType::bnorm : amrex::MLMGNormType::greater);
+
+        const int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
+        if (ng) {
+            // In this case, computeE needs to use ghost nodes data. So we
+            // ask MLMG to fill BC for us after it solves the problem.
+            mlmg.setFinalFillBC(true);
+        }
 
         phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 0, 0);
         rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
