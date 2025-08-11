@@ -449,7 +449,7 @@ computePhi (
             mlmg = std::make_unique<amrex::MLMG>(*linop); // actual solver defined here
             mlmg->setVerbose(verbosity);
             mlmg->setMaxIter(max_iters);
-            mlmg->setAlwaysUseBNorm((max_norm_b > 0));
+            mlmg->setConvergenceNormType((max_norm_b > 0) ? amrex::MLMGNormType::bnorm : amrex::MLMGNormType::greater);
 
             amrex::ParmParse pp2("mlmg");
             int xxx;
@@ -534,19 +534,6 @@ computePhi (
 
         amrex::MultiFab phi_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 1);
         amrex::MultiFab rho_hack(amrex::convert(ba_hack, amrex::IntVect{1,1}), dm_hack, 1, 0);
-
-        // Solve the Poisson equation
-        amrex::MLMG mlmg(*linop); // actual solver defined here
-        mlmg.setVerbose(verbosity);
-        mlmg.setMaxIter(max_iters);
-        mlmg.setConvergenceNormType((max_norm_b > 0) ? amrex::MLMGNormType::bnorm : amrex::MLMGNormType::greater);
-
-        const int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
-        if (ng) {
-            // In this case, computeE needs to use ghost nodes data. So we
-            // ask MLMG to fill BC for us after it solves the problem.
-            mlmg.setFinalFillBC(true);
-        }
 
         phi_hack.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
         rho_hack.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
