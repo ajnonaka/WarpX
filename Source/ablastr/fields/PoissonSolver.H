@@ -418,7 +418,6 @@ computePhi (
                 linop->setDomainBC(boundary_handler.lobc, boundary_handler.hibc);
             }
 
-            // Solve the Poisson equation
             mlmg = std::make_unique<amrex::MLMG>(*linop); // actual solver defined here
             mlmg->setVerbose(verbosity);
             mlmg->setMaxIter(max_iters);
@@ -503,10 +502,6 @@ computePhi (
         const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
 
         // Solve the Poisson equation
-        amrex::MLMG mlmg(*linop); // actual solver defined here
-        mlmg.setVerbose(verbosity);
-        mlmg.setMaxIter(max_iters);
-        mlmg.setConvergenceNormType((max_norm_b > 0) ? amrex::MLMGNormType::bnorm : amrex::MLMGNormType::greater);
 
         // Use the Multigrid (MLMG) solver if selected or on refined patches
         // but first scale rho appropriately
