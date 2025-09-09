@@ -149,6 +149,8 @@ Overall simulation parameters
 
           - ``implicit_evolve.max_particle_iterations`` (`integer`, default: 21)
           - ``implicit_evolve.particle_tolerance`` (`float`, default: 1.e-10)
+          - ``implicit_evolve.particle_suborbits`` (`bool`, default: false)
+          - ``implicit_evolve.print_unconverged_particle_details`` (`bool`, default: false)
 
         - ``implicit_evolve.use_mass_matrices_jacobian`` (`bool`, default: false).
           When `true`, the plasma current density is computed using the mass matrices during the linear stage of PS-JFNK, replacing direct particle calculations. This can enable large speed ups for simulations with many particles.
@@ -2851,7 +2853,7 @@ WarpX has five types of diagnostics:
 Similar to what is done for physical species, WarpX has a class Diagnostics that allows users to initialize different diagnostics, each of them with different fields, resolution and period.
 This currently applies to standard diagnostics, but should be extended to back-transformed diagnostics and reduced diagnostics (and others) in a near future.
 
-* ``warpx.synchronize_velocity_for_diagnostics`` (``0`` or ``1``, optional, default ``0``)
+* ``warpx.synchronize_velocity_for_diagnostics`` (``0`` or ``1``, optional, default ``1``)
     Whether to synchronize the particle velocities with the particle positions in the diagnostics.
     In its normal operation, WarpX is using the leap frog algorithm to advance the particles, and leaves the positions and velocities of the particles unsynchronized at the end of each time step, with the velocities lagging behind a half step.
     When this option is turned on, whenever any diagnostics will be calculated, the velocities will be advanced a half step to
