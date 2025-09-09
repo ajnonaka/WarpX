@@ -271,16 +271,16 @@ computePhi (
     static std::unique_ptr<amrex::MLMG> mlmg;
     static std::unique_ptr<amrex::MLNodeLinOp> linop;
     static std::unique_ptr<amrex::MLNodeLinOp> linop_distributed;
-    
+
     static int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
 
     static int solver_type = 0; // 0 = MLMG, 1 = GMRES
 
     static amrex::BoxArray ba_reducedgrid;
     static amrex::DistributionMapping dm_reducedgrid;
-    
+
     if (!mlmg) {
-    
+
         amrex::LPInfo info;
 
         // ensure memory is freed at the end of the program
@@ -372,14 +372,14 @@ computePhi (
                 max_grid_size_poisson[2] = xxx;
             }
 #endif
-           
+
             // create a new boxarray with reduced grids
             amrex::Box domain_reducedgrid = grids[lev].minimalBox();
             ba_reducedgrid.define(domain_reducedgrid);
             ba_reducedgrid.maxSize(max_grid_size_poisson);
 
             amrex::Print() << "Number of grids in reduced-rank Poisson solve: " << ba_reducedgrid.size() << std::endl;
-        
+
             // create the distribution map
             dm_reducedgrid.define(ba_reducedgrid);
 
@@ -388,7 +388,7 @@ computePhi (
             // need std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> >
             std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > field_factory_reducedgrid;
             const int max_guard = warpx.getngEB().max();
-            field_factory_reducedgrid = amrex::makeEBFabFactory(geom[lev], ba_reducedgrid, dm_reducedgrid, 
+            field_factory_reducedgrid = amrex::makeEBFabFactory(geom[lev], ba_reducedgrid, dm_reducedgrid,
                                                                 {max_guard, max_guard, max_guard},
                                                                 amrex::EBSupport::full);
 
@@ -396,7 +396,7 @@ computePhi (
 
             amrex::EBFArrayBoxFactory const& fieldEBFactory_reducedgrid = static_cast<amrex::EBFArrayBoxFactory const&>(*field_factory_reducedgrid);
             factories_reducedgrid.push_back(&fieldEBFactory_reducedgrid);
-        
+
             if (eb_enabled || is_rz) {
                 // In the presence of EB or RZ: the solver assumes that the beam is
                 // propagating along  one of the axes of the grid, i.e. that only *one*
@@ -494,7 +494,7 @@ computePhi (
                 amrex::Warning("solver_type=0 not supported for the poissontest 1 GPU feature; switching to solver_type=1");
                 solver_type = 1;
             }
-        
+
             if (pp2.query("setPreSmooth",xxx)) {
                 mlmg->setPreSmooth(xxx); // default 2
             }
@@ -574,7 +574,7 @@ computePhi (
 
         phi_reducedgrid.ParallelCopy(*phi[lev], 0, 0, 1, 1, 1);
         rho_reducedgrid.ParallelCopy(*rho[lev], 0, 0, 1, 0, 0);
-        
+
         // Solve Poisson equation at lev
         if (solver_type == 0) {
             mlmg->solve( {&phi_reducedgrid}, {&rho_reducedgrid}, relative_tolerance, absolute_tolerance );
