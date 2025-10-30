@@ -318,14 +318,12 @@ computePhi (
                               geom[lev].CellSize(2)/std::sqrt(1._rt-beta_solver[2]*beta_solver[2]))};
 
 #if (defined(ABLASTR_USE_FFT) && defined(WARPX_DIM_3D))
-            // Use the Integrated Green Function solver (FFT) on the coarsest level if it was selected
-            if(is_solver_igf_on_lev0 && lev==0){
-                if ( max_norm_b == 0 ) {
-                    phi[lev]->setVal(0);
-                } else {
-                    computePhiIGF( *rho[lev], *phi[lev], dx_scaled, grids[lev], is_igf_2d);
-                }
-                continue;
+        // Use the Integrated Green Function solver (FFT) on the coarsest level if it was selected
+        if(is_solver_igf_on_lev0 && lev==0){
+            if ( max_norm_b == 0 ) {
+                phi[lev]->setVal(0);
+            } else {
+                computePhiIGF( *rho[lev], *phi[lev], dx_scaled, is_igf_2d);
             }
 #endif
 
