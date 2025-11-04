@@ -51,11 +51,14 @@
 #ifdef AMREX_USE_EB
 #   include <AMReX_EBFabFactory.H>
 #endif
+#include <AMReX_GMRES_MLMG.H>
 
 #include <algorithm>
 #include <array>
 #include <optional>
 #include <stdexcept>
+
+#include "WarpX.H"
 
 
 namespace ablastr::fields {
@@ -267,6 +270,31 @@ computePhi (
 
     amrex::LPInfo info;
 
+    amrex::ParmParse pp1("lpinfo");
+
+    int aaa;
+    if (pp1.query("do_agglomeration",aaa)) {
+        info.setAgglomeration(aaa); // default true
+    }
+    if (pp1.query("agg_grid_size",aaa)) {
+        info.setAgglomerationGridSize(aaa); // default -1 (architecture-dependent setting)
+    }
+    if (pp1.query("do_consolidation",aaa)) {
+        info.setConsolidation(aaa); // default true
+    }
+    if (pp1.query("con_grid_size",aaa)) {
+        info.setConsolidationGridSize(aaa); // default -1 (architecture-dependent setting)
+    }
+    if (pp1.query("con_ratio",aaa)) {
+        info.setConsolidationRatio(aaa); // default 2
+    }
+    if (pp1.query("con_strategy",aaa)) {
+        info.setConsolidationStrategy(aaa); // default 3
+    }
+    if (pp1.query("setMaxCoarseningLevel",aaa)) {
+        info.setMaxCoarseningLevel(aaa); // default 30
+    }
+
     for (int lev=0; lev<=finest_level; lev++) {
         amrex::Array<amrex::Real,AMREX_SPACEDIM> const dx_scaled
                 {AMREX_D_DECL(geom[lev].CellSize(0)/std::sqrt(1._rt-beta_solver[0]*beta_solver[0]),
@@ -406,6 +434,51 @@ computePhi (
         mlmg.setMaxIter(max_iters);
         mlmg.setConvergenceNormType((max_norm_b > 0) ? amrex::MLMGNormType::bnorm : amrex::MLMGNormType::greater);
 
+        amrex::ParmParse pp2("mlmg");
+        int xxx;
+        amrex::Real yyy;
+
+        int solver_type = 0; // 0 = MLMG, 1 = GMRES
+        pp2.query("solver_type",solver_type);
+
+        if (pp2.query("setPreSmooth",xxx)) {
+            mlmg.setPreSmooth(xxx); // default 2
+        }
+        if (pp2.query("setPostSmooth",xxx)) {
+            mlmg.setPostSmooth(xxx); // default 2
+        }
+        if (pp2.query("setFinalSmooth",xxx)) {
+            mlmg.setFinalSmooth(xxx); // default 8 (when smoother is used as bottom solver)
+        }
+        if (pp2.query("setBottomSmooth",xxx)) {
+            mlmg.setBottomSmooth(xxx); // default 0
+        }
+        if (pp2.query("bottomSolver",xxx)) {
+            if (xxx == 0) {
+                mlmg.setBottomSolver(amrex::BottomSolver::Default); // default 0
+            } else if (xxx == 1) {
+                mlmg.setBottomSolver(amrex::BottomSolver::smoother);
+            } else if (xxx == 2) {
+                mlmg.setBottomSolver(amrex::BottomSolver::bicgstab);
+            } else if (xxx == 3) {
+                mlmg.setBottomSolver(amrex::BottomSolver::cg);
+            } else if (xxx == 4) {
+                mlmg.setBottomSolver(amrex::BottomSolver::bicgcg);
+            } else if (xxx == 5) {
+                mlmg.setBottomSolver(amrex::BottomSolver::cgbicg);
+            } else if (xxx == 6) {
+                mlmg.setBottomSolver(amrex::BottomSolver::hypre);
+            } else if (xxx == 7) {
+                mlmg.setBottomSolver(amrex::BottomSolver::petsc);
+            }
+        }
+        if (pp2.query("setBottomTolerance",yyy)) {
+            mlmg.setBottomTolerance(yyy); // default 1.e-4
+        }
+        if (pp2.query("setBottomToleranceAbs",yyy)) {
+            mlmg.setBottomToleranceAbs(yyy); // default -1.
+        }
+
         const int ng = int(grid_type == utils::enums::GridType::Collocated); // ghost cells
         if (ng) {
             // In this case, computeE needs to use ghost nodes data. So we
@@ -413,11 +486,29 @@ computePhi (
             mlmg.setFinalFillBC(true);
         }
 
+        const auto mlmg_time_beg_step = static_cast<amrex::Real>(amrex::second());
+
         // Solve Poisson equation at lev
-        mlmg.solve( {phi[lev]}, {rho[lev]},
-                     relative_tolerance, absolute_tolerance );
+        if (solver_type == 0) {
+            mlmg.solve( {phi[lev]}, {rho[lev]}, relative_tolerance, absolute_tolerance );
+        } else {
+            amrex::GMRESMLMG gmsolve(mlmg);
+            gmsolve.solve( *phi[lev], *rho[lev], relative_tolerance, absolute_tolerance );
+        }
+        linop->postSolve({phi[lev]});
+
+#if 0
+        amrex::VisMF::Write(*rho[lev],"rho");
+        amrex::VisMF::Write(*phi[lev],"phi");
+#endif
 
         const amrex::IntVect& refratio = rel_ref_ratio.value()[lev];
+        const auto mlmg_time_end_step = static_cast<amrex::Real>(amrex::second());
+
+        amrex::Print()<< "MLMG time = "
+                      << mlmg_time_end_step-mlmg_time_beg_step
+                      << " s\n";
+
         const int ncomp = linop->getNComp();
 
         // needed for solving the levels by levels:
@@ -435,12 +526,53 @@ computePhi (
                                         ng);
         }
 
-        // Run additional operations, such as calculation of the E field for embedded boundaries
-        if constexpr (!std::is_same_v<T_PostPhiCalculationFunctor, std::nullopt_t>) {
-            if (post_phi_calculation.has_value()) {
-                post_phi_calculation.value()(mlmg, lev);
+        if (solver_type == 0) {
+            // Run additional operations, such as calculation of the E field for embedded boundaries
+            if constexpr (!std::is_same_v<T_PostPhiCalculationFunctor, std::nullopt_t>) {
+                if (post_phi_calculation.has_value()) {
+                    post_phi_calculation.value()(mlmg, lev);
+                }
             }
         }
+
+        // create an alieas to the WarpX Efield
+        auto & warpx = WarpX::GetInstance();
+
+        amrex::Vector< amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> > e_field;
+        e_field.push_back(
+#if defined(WARPX_DIM_1D_Z)
+            amrex::Array<amrex::MultiFab*, 1>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#elif defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
+            amrex::Array<amrex::MultiFab*, 2>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#elif defined(WARPX_DIM_3D)
+            amrex::Array<amrex::MultiFab *, 3>{
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{0}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{1}, lev),
+                warpx.m_fields.get(warpx::fields::FieldType::Efield_fp, Direction{2}, lev)
+            }
+#endif
+        );
+
+        if (solver_type == 1) {
+            linop->compGrad(0, e_field[0], *phi[0], amrex::MLLinOp::Location::CellCenter);
+            for(int dir=0; dir<AMREX_SPACEDIM; ++dir) {
+                e_field[lev][dir]->mult(-1.);
+            }
+        }
+
+#if 0
+            amrex::VisMF::Write(*e_field[lev][0],"Ex");
+            amrex::VisMF::Write(*e_field[lev][1],"Ey");
+#if defined(WARPX_DIM_3D)
+            amrex::VisMF::Write(*e_field[lev][2],"Ez");
+#endif
+#endif
+
         rho[lev]->mult(-ablastr::constant::SI::ep0);  // Multiply rho by epsilon again
 
     } // loop over lev(els)
