@@ -439,8 +439,8 @@ computePhi (
         amrex::Real yyy;
 
         int solver_type = 0; // 0 = MLMG, 1 = GMRES
-        pp2.query("solver_type",solver_type);            
-        
+        pp2.query("solver_type",solver_type);
+
         if (pp2.query("setPreSmooth",xxx)) {
             mlmg.setPreSmooth(xxx); // default 2
         }
